@@ -20,6 +20,7 @@ beam-fem/
 │       ├── sizing.py      SizingProblem（解析的感度・直接法）
 │       ├── mma.py         MMA（mmasub / subsolv）
 │       ├── driver.py      minimize_mass（駆動ループ・OptResult）
+│       ├── discrete.py    離散サイジング（総当たり・貪欲局所探索）
 │       └── topology.py    Ground Structure 法（トラス LP）
 ├── tests/                 検証テスト（pytest, 43 件）
 ├── examples/              使用例
@@ -92,6 +93,16 @@ res = minimize_mass(prob, maxiter=100, move=0.2, tol=1e-6)
 prob.element_values(res.x, kind="area"|"scale"|"size")
 ```
 
+### 離散サイジング（規格サイズ）
+
+```python
+from beamfem.optimize import solve_discrete_greedy, solve_discrete_exhaustive
+catalog = [0.5, 1.0, 1.5, 2.0]                      # スケール係数のカタログ（共有）
+res = solve_discrete_greedy(prob, catalog)          # 実用規模（貪欲局所探索）
+res = solve_discrete_exhaustive(prob, catalog)      # 小規模で大域最適
+# res: x, indices, mass, constraints, feasible, n_eval, method
+```
+
 ### トポロジー最適化
 
 ```python
@@ -133,6 +144,7 @@ set_workspace("results/case1")   # 既定は ./workspace。相対パス保存は
 | `test_viz.py` | 描画のスモークテスト（ヘッドレス） |
 | `test_workspace.py` | 出力先の解決 |
 | `test_builders.py` | グリラージュ生成・圧力の節点化・つり合い |
+| `test_discrete.py` | 離散最適化（貪欲 vs 総当たり大域最適・実行可能性） |
 
 ## 8.5 設計上の不変条件（保守の指針）
 

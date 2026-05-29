@@ -15,6 +15,11 @@ from .topology import (
     grid_nodes,
     equilibrium_matrix,
 )
+from .discrete import (
+    DiscreteResult,
+    solve_discrete_exhaustive,
+    solve_discrete_greedy,
+)
 
 __all__ = [
     "ScaledSection",
@@ -31,4 +36,7 @@ __all__ = [
     "generate_members",
     "grid_nodes",
     "equilibrium_matrix",
+    "DiscreteResult",
+    "solve_discrete_exhaustive",
+    "solve_discrete_greedy",
 ]

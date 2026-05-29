@@ -158,7 +158,42 @@ print(res.x, res.mass, res.sections, res.converged)
 補強として妥当な配置になる（`viz.plot_member_sizes` で形態を図示）。荷重の節点化と
 グリラージュ生成は [`builders.py`](../src/beamfem/builders.py)（[8 章](08_code_structure.md)）。
 
-## 5.8 限界と拡張余地
+## 5.8 離散サイジング（規格サイズ）
+
+実装：[`src/beamfem/optimize/discrete.py`](../src/beamfem/optimize/discrete.py)
+
+実務ではリブ断面を任意寸法ではなく**規格材のカタログ**から選ぶ。各設計変数のスケール係数を
+離散カタログ $\mathcal{C}_i = \{c_{i1}, c_{i2}, \dots\}$ からのみ選ぶ組合せ最適化：
+
+$$\min_{x_i \in \mathcal{C}_i} \sum_e \rho_e L_e A_e(\mathbf{x})
+  \quad\text{s.t.}\quad g_e^\sigma\le0,\; g_j^u\le0$$
+
+連続版と同じ `SizingProblem` を関数評価器として用いる（感度不要の軽量評価
+`evaluate_values` を使用）。2 つの解法：
+
+| 解法 | 関数 | 特徴 |
+|---|---|---|
+| 総当たり | `solve_discrete_exhaustive` | 全組合せを評価し**大域最適**。小規模（既定 ≤ 20 万通り）・検証用 |
+| 貪欲局所探索 | `solve_discrete_greedy` | 連続最適解を丸めて開始 → 実行可能化 → 近傍探索（単変数縮小＋交換移動）。実用規模 |
+
+```python
+from beamfem.optimize import solve_discrete_greedy, solve_discrete_exhaustive
+
+catalog = [d/1000/0.03 for d in [20,25,30,40,50,60]]  # 規格リブ径→スケール
+res = solve_discrete_greedy(prob, catalog)             # 共有カタログ
+# res: x, indices, mass, constraints, feasible, n_eval, method
+# 変数ごとに別カタログも可: solve_discrete_greedy(prob, [cat0, cat1, ...])
+```
+
+> **検証**（[`tests/test_discrete.py`](../tests/test_discrete.py)）：
+> - `evaluate_values` が `evaluate` の目的・制約と一致
+> - **貪欲解が総当たり（大域最適）と一致**し、関数評価回数は大幅に少ない
+> - 離散解は実行可能で、連続最適（下界）を下回らない
+>
+> 例 [`examples/ribbed_plate_discrete.py`](../examples/ribbed_plate_discrete.py)：規格リブ径
+> から選ぶリブ補強。168 万通りを貪欲探索が約 270 評価で解き、連続比 +数% に収まる。
+
+## 5.9 限界と拡張余地
 
 - スケール係数1変数／グループ（多寸法の独立最適化は将来拡張）
 - 座屈・固有振動数制約は未実装

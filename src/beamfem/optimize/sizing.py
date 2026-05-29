@@ -294,6 +294,29 @@ class SizingProblem:
         dfdx = np.array(dcons) if dcons else np.zeros((0, self.n_var))
         return f0, df0, f, dfdx
 
+    def evaluate_values(self, x):
+        """目的 f0 と制約 f のみを返す（感度なし・高速）。離散最適化の関数評価用。"""
+        x = np.asarray(x, dtype=float)
+        self._cur_x = x
+        state = self._analyze(x)
+        u = state["u"]
+        f0, _ = self._mass_and_grad(x)
+
+        cons = []
+        for e, el in enumerate(self.model.elements):
+            sa = self._sigma_allow_of(e)
+            if not np.isfinite(sa):
+                continue
+            ed = state["elem"][e]
+            f_local = ed["klocal"] @ (ed["T"] @ u[ed["dofs"]])
+            sigma, _, _ = self._sigma_and_grad(f_local, el.sec)
+            cons.append(sigma / sa - 1.0)
+        for dl in self.disp_limits:
+            j = dl.node * DOF_PER_NODE + dl.dof
+            cons.append(u[j] / dl.limit - 1.0)
+            cons.append(-u[j] / dl.limit - 1.0)
+        return f0, np.array(cons)
+
     def current_sections(self, x):
         """設計変数 x に対応する各設計グループの断面を返す。"""
         return {i: dv.family.make(float(x[i])) for i, dv in enumerate(self.design_vars)}

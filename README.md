@@ -18,6 +18,7 @@
 - **要素内力・応力の回収**：軸力 N・せん断 Vy/Vz・ねじり T・曲げ My/Mz、および軸/曲げ/合成応力。表・CSV 出力は**表示項目を指定可能**（常に全項目を出さない）。断面力図も描画
 - **多様な断面形状**：矩形・円・I 形（H 形鋼）・箱型（角形鋼管）・パイプ（中空円）、および完全自由な断面（A,I,J 直接指定）
 - **断面サイジング最適化**：応力・たわみ制約下の質量最小化。**解析的感度（直接法）＋ MMA**。解析解・SLSQP と一致を検証済み。最適化結果の構造形態（部材サイズ分布）も図示できる
+- **離散サイジング最適化**：規格サイズのカタログから選ぶ組合せ最適化（総当たり＝大域最適／貪欲局所探索＝実用規模）
 - **トポロジー／部材配置最適化**：**Ground Structure 法（トラスLP）**。応力制約下の最小体積を線形計画で**大域最適**に解く。複数荷重ケース・引張/圧縮別許容応力・2D/3D 対応。最適配置を図示
 - **出力は `workspace/` フォルダへ**：図・CSV は相対パス指定で `workspace/` に自動保存（フォルダも自動生成、`set_workspace` で変更可）
 
@@ -79,6 +80,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/sizing_optimization.py`](examples/sizing_optimization.py) — 先細り片持ち梁の質量最小化（サイジング最適化）
 - [`examples/topology_ground_structure.py`](examples/topology_ground_structure.py) — 片持ちトラスの部材配置最適化（Ground Structure 法）
 - [`examples/ribbed_plate_optimization.py`](examples/ribbed_plate_optimization.py) — 円形膜を下から補強するリブ構造の最適化（グリラージュ＋サイジング）
+- [`examples/ribbed_plate_discrete.py`](examples/ribbed_plate_discrete.py) — 上記の離散版（規格リブ径から選定）
 
 ### 断面サイジング最適化
 
