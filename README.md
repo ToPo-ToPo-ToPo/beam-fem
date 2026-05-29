@@ -15,6 +15,7 @@
 - **変形図の描画**（matplotlib）：要素ごとに形状関数で曲げを滑らかに補間、2D/3D 自動判定、支持・荷重も表示
 - **要素内力・応力の回収**：軸力 N・せん断 Vy/Vz・ねじり T・曲げ My/Mz、および軸/曲げ/合成応力。表・CSV 出力は**表示項目を指定可能**（常に全項目を出さない）。断面力図も描画
 - **多様な断面形状**：矩形・円・I 形（H 形鋼）・箱型（角形鋼管）・パイプ（中空円）、および完全自由な断面（A,I,J 直接指定）
+- **断面サイジング最適化**：応力・たわみ制約下の質量最小化。**解析的感度（直接法）＋ MMA**。解析解・SLSQP と一致を検証済み
 - **出力は `workspace/` フォルダへ**：図・CSV は相対パス指定で `workspace/` に自動保存（フォルダも自動生成、`set_workspace` で変更可）
 
 ## セットアップ
@@ -72,6 +73,23 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py) — 2D 門型ラーメン（水平荷重・変形図）
 - [`examples/beam_forces.py`](examples/beam_forces.py) — 単純梁の内力・応力と項目指定出力
 - [`examples/spider_web_3d.py`](examples/spider_web_3d.py) — 円形「蜘蛛の巣」フレームに面分布荷重（面外グリラージュ／3D 曲げ・ねじり）
+- [`examples/sizing_optimization.py`](examples/sizing_optimization.py) — 先細り片持ち梁の質量最小化（サイジング最適化）
+
+### 断面サイジング最適化
+
+```python
+from beamfem.optimize import SizingProblem, DesignVar, DispLimit, ScaledSection, minimize_mass
+
+# 設計変数 = 断面スケール係数（要素グループごと）。任意の基準断面を相似拡大
+dvs = [DesignVar(ScaledSection(base), elements=[0, 1], x0=1.5, xmin=0.3, xmax=4.0)]
+prob = SizingProblem(
+    model, dvs,
+    sigma_allow=160e6,                          # 要素応力の許容値
+    disp_limits=[DispLimit(node=tip, dof=UY, limit=0.02)],  # たわみ制約
+)
+res = minimize_mass(prob, maxiter=100, move=0.2)   # 解析的感度 + MMA
+print(res.x, res.mass, res.sections)
+```
 
 ## 断面形状
 
@@ -124,6 +142,7 @@ examples/       使用例
 - [x] 3D Timoshenko 静解析（検証済み）
 - [x] 変形図の描画（2D/3D）
 - [x] 要素内力・応力の回収（断面力図・項目指定出力）
+- [x] 断面サイジング最適化（解析的感度 + MMA、応力・たわみ制約下の質量最小化）
 - [ ] 固有値（モーダル）解析
 - [ ] 断面サイジング最適化（解析的感度 + MMA）
 - [ ] トポロジー / 部材配置最適化（Ground Structure 法）

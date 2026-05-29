@@ -146,3 +146,77 @@ def element_stiffness_global(
     R = rotation_matrix(p1, p2, vref)
     T = transformation_matrix(R)
     return T.T @ k_local @ T
+
+
+def _fill_bending_derivs(out, dofs, sgn, I, A, c, L, E, wrt):
+    """曲げブロックの偏微分を out(12x12, 上三角) に加算する。
+
+    dofs=[t1,r1,t2,r2], sgn は trans-rot 連成の符号（x-y:+1, x-z:-1）。
+    c = 12E/(G k L^2) なので Phi = c I / A。wrt は 'I' または 'A'。
+    """
+    t1, r1, t2, r2 = dofs
+    D = 1.0 + c * I / A
+    ez = E * I / (D * L**3)
+    Phi = c * I / A
+    if wrt == "I":
+        dez = E / (L**3 * D**2)
+        dPhi = c / A
+    elif wrt == "A":
+        dez = E * c * I**2 / (L**3 * A**2 * D**2)
+        dPhi = -c * I / A**2
+    else:
+        raise ValueError(wrt)
+
+    # 定数係数エントリ: d/dx = coeff * dez
+    out[t1, t1] += 12.0 * dez
+    out[t1, r1] += sgn * 6.0 * L * dez
+    out[t1, t2] += -12.0 * dez
+    out[t1, r2] += sgn * 6.0 * L * dez
+    out[r1, t2] += -sgn * 6.0 * L * dez
+    out[t2, t2] += 12.0 * dez
+    out[t2, r2] += -sgn * 6.0 * L * dez
+    # Phi を含むエントリ: 積の微分
+    out[r1, r1] += L**2 * (dPhi * ez + (4.0 + Phi) * dez)
+    out[r1, r2] += L**2 * (-dPhi * ez + (2.0 - Phi) * dez)
+    out[r2, r2] += L**2 * (dPhi * ez + (4.0 + Phi) * dez)
+
+
+def local_stiffness_derivs(E, G, L, sec):
+    """局所剛性の断面諸量に関する解析的偏微分を返す。
+
+    戻り値は dict ``{'A':dk/dA, 'Iy':dk/dIy, 'Iz':dk/dIz, 'J':dk/dJ}``、
+    各々 12x12 の対称行列。サイジング最適化の感度に使用する。
+    """
+    A, Iy, Iz = sec.A, sec.Iy, sec.Iz
+    cy = 12.0 * E / (G * sec.ky * L**2)  # Phi_y = cy * Iz / A
+    cz = 12.0 * E / (G * sec.kz * L**2)  # Phi_z = cz * Iy / A
+
+    dA = np.zeros((12, 12))
+    dIy = np.zeros((12, 12))
+    dIz = np.zeros((12, 12))
+    dJ = np.zeros((12, 12))
+
+    # --- 軸: k[0,0]=EA/L 等は A の1次 ---
+    e_L = E / L
+    dA[0, 0] += e_L
+    dA[0, 6] += -e_L
+    dA[6, 6] += e_L
+
+    # --- ねじり: GJ/L は J の1次 ---
+    g_L = G / L
+    dJ[3, 3] += g_L
+    dJ[3, 9] += -g_L
+    dJ[9, 9] += g_L
+
+    # --- x-y 曲げ (dofs 1,5,7,11, sgn=+1, I=Iz, c=cy): Iz と A に依存 ---
+    _fill_bending_derivs(dIz, (1, 5, 7, 11), +1.0, Iz, A, cy, L, E, "I")
+    _fill_bending_derivs(dA, (1, 5, 7, 11), +1.0, Iz, A, cy, L, E, "A")
+
+    # --- x-z 曲げ (dofs 2,4,8,10, sgn=-1, I=Iy, c=cz): Iy と A に依存 ---
+    _fill_bending_derivs(dIy, (2, 4, 8, 10), -1.0, Iy, A, cz, L, E, "I")
+    _fill_bending_derivs(dA, (2, 4, 8, 10), -1.0, Iy, A, cz, L, E, "A")
+
+    out = {}
+    for key, m in (("A", dA), ("Iy", dIy), ("Iz", dIz), ("J", dJ)):
+        out[key] = m + m.T - np.diag(np.diag(m))
+    return out
