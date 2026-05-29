@@ -1,0 +1,131 @@
+# 8. コード構成と API
+
+## 8.1 ディレクトリ構成
+
+```
+beam-fem/
+├── src/beamfem/
+│   ├── __init__.py        トップレベル API の再エクスポート
+│   ├── material.py        Material, Section（断面コンストラクタ）
+│   ├── model.py           Model, Element, 自由度定数, 境界条件・荷重
+│   ├── element3d.py       3D Timoshenko 要素剛性・座標変換・剛性微分
+│   ├── assembly.py        疎行列での全体剛性・荷重組み立て
+│   ├── solver.py          静的線形解析（StaticResult）
+│   ├── forces.py          内力・応力の回収（ForceResults）
+│   ├── viz.py             可視化（matplotlib・任意依存）
+│   ├── workspace.py       出力先 workspace フォルダの管理
+│   └── optimize/
+│       ├── sections.py    ScaledSection（スケール断面ファミリ）
+│       ├── sizing.py      SizingProblem（解析的感度・直接法）
+│       ├── mma.py         MMA（mmasub / subsolv）
+│       ├── driver.py      minimize_mass（駆動ループ・OptResult）
+│       └── topology.py    Ground Structure 法（トラス LP）
+├── tests/                 検証テスト（pytest, 43 件）
+├── examples/              使用例
+├── docs/                  本ドキュメント
+└── pyproject.toml
+```
+
+## 8.2 依存関係
+
+- 必須：`numpy`, `scipy`
+- 任意：`matplotlib`（`viz`）、`pytest`（テスト）
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[viz,dev]"
+.venv/bin/python -m pytest
+```
+
+## 8.3 主要 API
+
+### モデル構築
+
+```python
+from beamfem import Material, Section, Model
+from beamfem import UX, UY, UZ, RX, RY, RZ   # 局所自由度インデックス 0..5
+
+mat = Material(E, nu=0.3, rho=0.0)
+sec = Section.rectangle(b, h)   # circle / pipe / box / i_section / Section(...)
+
+m = Model()
+n0 = m.add_node(x, y, z)
+e0 = m.add_element(n0, n1, mat, sec, vref=None)
+m.fix(node[, dofs]); m.pin(node); m.fix_to_plane_xy()
+m.add_load(node, dof, value)
+```
+
+### 解析
+
+```python
+from beamfem import solve_static, recover_forces
+
+res = solve_static(m)                 # StaticResult: u, reactions, K, node_disp(node)
+forces = recover_forces(m, res)       # ForceResults
+forces.print_table(items=[...], at="max"|"ends", element_ids=None)
+forces.to_csv(path, items=[...], at=...)      # workspace/ へ
+forces[e].max_abs("Mz"); forces[e].get_ends("sigma_max")
+```
+
+### 可視化
+
+```python
+from beamfem import viz
+viz.plot_model(m); viz.plot_deformed(m, res, scale="auto")
+viz.plot_diagram(forces, "Mz")
+viz.plot_member_sizes(m, values, label=...)
+viz.plot_truss(nodes, members, areas, show_all=True)
+viz.savefig("out.png"); viz.show()
+```
+
+### サイジング最適化
+
+```python
+from beamfem.optimize import (
+    SizingProblem, DesignVar, DispLimit, ScaledSection, minimize_mass
+)
+dvs = [DesignVar(ScaledSection(base), elements=[...], x0=1.5, xmin=0.3, xmax=4.0)]
+prob = SizingProblem(model, dvs, sigma_allow=..., disp_limits=[DispLimit(node, dof, limit)])
+res = minimize_mass(prob, maxiter=100, move=0.2, tol=1e-6)
+# res: x, mass, constraints, sections, iterations, converged, history
+prob.element_values(res.x, kind="area"|"scale"|"size")
+```
+
+### トポロジー最適化
+
+```python
+from beamfem.optimize import (
+    GroundStructure, generate_members, grid_nodes, solve_min_volume
+)
+nodes = grid_nodes(nx, ny, lx, ly)
+members = generate_members(nodes)
+gs = GroundStructure(nodes, members, supports={node: [dofs]}, load_cases=[{(node,dof): val}])
+res = solve_min_volume(gs, sigma_t=..., sigma_c=None, area_min=0.0)
+# res: areas, forces, volume, active(rel_tol)
+```
+
+### 出力先
+
+```python
+from beamfem import set_workspace, get_workspace
+set_workspace("results/case1")   # 既定は ./workspace。相対パス保存はこの中へ
+```
+
+## 8.4 テストと検証の対応
+
+| テスト | 検証内容 |
+|---|---|
+| `test_cantilever.py` | Timoshenko 解析解・要素分割不変性・反力釣り合い |
+| `test_sections.py` | 各断面諸量・片持ち解析解との一致 |
+| `test_forces.py` | 内力・応力（せん断/モーメント/軸/曲げ応力）の解析解一致 |
+| `test_optimize.py` | 感度 vs 有限差分、MMA vs 解析解／SLSQP |
+| `test_topology.py` | LP の解析解一致・平衡・複数ケース |
+| `test_viz.py` | 描画のスモークテスト（ヘッドレス） |
+| `test_workspace.py` | 出力先の解決 |
+
+## 8.5 設計上の不変条件（保守の指針）
+
+- **剛性行列は上三角のみ記入して対称化**（[1.3 節](01_fem_theory.md)の注記）。新しい要素・項を
+  足すときも同様に。軸・ねじり項を両側に書くと非対角が 2 倍になり平衡が崩れる。
+- 線形ソルバは `solver._solve_sparse` に集約。性能要求時はここを差し替える。
+- 最適化の感度を変更したら、必ず有限差分／解析解と再照合する。
