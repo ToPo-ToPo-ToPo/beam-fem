@@ -142,6 +142,12 @@ T 形断面の合成剛性 $EA\,e^2$（$e=\lVert\mathbf{r}\rVert$）が取り込
 > 働く。孤立した片持ち梁では軸力が立たず、たわみは変わらない点に注意（検証は
 > [`tests/test_offset.py`](../tests/test_offset.py)：剛体リンク明示モデルとの一致）。
 
+コード対応: 剛体腕 $\mathbf{G}$ は `element3d.rigid_offset_matrix`、要素剛性への適用は
+`element3d.element_stiffness_global`（`offset` 引数）、内力回収は
+`forces.recover_forces`（$\mathbf{G}$ を介して図心変位へ）。`Element.offset` に保持し
+`Model.add_element(..., offset=...)` で与える。リブ補強板の例
+`examples/ribbed_plate_shell.py`（めり込み $e=0$ vs 正規オフセット $e=t/2+h/2$ の比較）。
+
 ## 1.6 検証（解析解との一致）
 
 実装は片持ち梁の Timoshenko 厳密たわみと**1 要素でも厳密一致**する：

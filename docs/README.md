@@ -17,7 +17,8 @@
 | [7. 可視化](07_visualization.md) | 変形図・断面力図・構造形態図 | `viz.py` |
 | [8. コード構成](08_code_structure.md) | モジュール構成と API 一覧 | パッケージ全体 |
 | [9. 構造生成と面荷重](09_builders_loads.md) | グリラージュ生成・面分布荷重の節点化 | `builders.py` |
-| [10. シェル要素](10_shell_element.md) | 三角形（CST+DKT）・四角形 MITC4（Q4+Mindlin）フラットシェル・ドリリング・応力回収 | `shell3d.py`, `shell_mitc4.py`, `shell.py` |
+| [10. 三角形シェル要素](10_shell_element.md) | 三角形フラットシェル（CST 膜 + DKT 板曲げ・薄板）・ドリリング・梁連成・応力回収 | `shell3d.py`, `shell.py` |
+| [11. 四角形シェル MITC4](11_quad_shell_mitc4.md) | 四角形フラットシェル（Q4 膜 + MITC4 板曲げ・厚板〜薄板）・タイング・応力回収・最適化連成 | `shell_mitc4.py`, `shell.py` |
 
 ## 例題
 

@@ -162,41 +162,26 @@ $$
 
 ## 10.9 四角形フラットシェル MITC4（厚板対応）
 
-3 節点 DKT は薄板（Kirchhoff）専用だが、4 節点 **MITC4**（`shell_mitc4.py`）は
-**Mindlin-Reissner 板**（横せん断変形込み）なので厚板から薄板まで扱える。膜は
-Q4 平面応力、ドリリングは三角形と同じ架空剛性、各節点 6 自由度で梁・三角形シェル
-と混在できる（`Model.add_quad_shell`、節点は反時計まわり）。
+3 節点 DKT は薄板（Kirchhoff）専用。**厚板から薄板まで**扱える 4 節点
+Mindlin-Reissner 要素 **MITC4**（`shell_mitc4.py`, `Model.add_quad_shell`）は
+**[11 章](11_quad_shell_mitc4.md)** にまとめている。各節点 6 自由度なので梁・三角形
+シェルと混在でき、応力回収（`sf.quad_shells`）・サイジング最適化にも対応する。
 
-### 板曲げ（Mindlin + 仮定横せん断）
+## 10.10 コード対応
 
-回転 $\theta_x,\theta_y$ とたわみ $w$ を独立に双一次補間する。曲げ曲率は DKT と同じ
-規約（$\kappa_x=\partial\theta_y/\partial x$ など）。横せん断ひずみ
-
-$$\gamma_{xz}=\partial w/\partial x+\theta_y,\qquad \gamma_{yz}=\partial w/\partial y-\theta_x$$
-
-を素直に補間すると薄板で**せん断ロック**するため、**MITC4**（Dvorkin-Bathe）で
-共変横せん断を辺中点 $A(0,\!-1),B(1,\!0),C(0,\!1),D(\!-1,\!0)$ でサンプルし
-
-$$\gamma_\xi=\tfrac12(1-\eta)\gamma_\xi^A+\tfrac12(1+\eta)\gamma_\xi^C,\quad
-  \gamma_\eta=\tfrac12(1-\xi)\gamma_\eta^D+\tfrac12(1+\xi)\gamma_\eta^B$$
-
-と仮定し、$[\gamma_{xz},\gamma_{yz}]^\top=\mathbf{J}^{-1}[\gamma_\xi,\gamma_\eta]^\top$ で
-デカルト成分へ戻す。要素剛性は曲げ $\mathbf{D}_b$ と横せん断
-$\mathbf{D}_s=k\,G\,t\,\mathbf{I}_2$（$k=5/6$）を 2×2 ガウスで積分する。
-
-### 検証（`tests/test_mitc4.py` / `examples/plate_mitc4.py`）
-
-- **剛体モード**：$w$ 並進・$\theta_x,\theta_y$ 回転でゼロエネルギー。
-- **薄板でロックしない**：$a/t=1000$ の単純支持板が Kirchhoff(Navier) 解へ収束
-  （16×16 で誤差 <1%、粗メッシュでも過小評価しない）。
-- **厚板のせん断変形**：$a/t=10$ で Kirchhoff より $\sim$12% 大きいたわみへ収束。
-- **膜パッチ（Q4）・座標変換不変性・応力回収**（`sf.quad_shells`）。
-
-四角形シェルは固定剛性として `SizingProblem` にも組み込まれ、四角形シェル板＋
-オフセットリブのサイジング最適化に使える（解析的感度は有限差分と一致、
-`examples/ribbed_plate_quad_sizing.py`）。
+| 数式・処理 | 関数 |
+|---|---|
+| 局所座標系 $\mathbf{R},x_i,y_i$ | `shell3d.shell_local_frame` |
+| 膜 $\mathbf{B}_m$・$\mathbf{K}_m$ | `shell3d.cst_membrane_stiffness` |
+| DKT 曲率 $\mathbf{B}_b(\xi,\eta)$ | `shell3d.dkt_curvature_B`（辺パラメータ `_dkt_params`, 微分 `_dkt_H_derivs`） |
+| DKT 曲げ剛性 $\mathbf{K}_b$ | `shell3d.dkt_bending_stiffness` |
+| ドリリング $\mathbf{K}_d$ | `shell3d.drilling_stiffness` |
+| 局所 18×18 剛性（散らし込み） | `shell3d.shell_local_stiffness`（`_MEMBRANE_DOF/_BENDING_DOF/_DRILL_DOF`） |
+| 変換 $\mathbf{T}$（6 ブロック） | `shell3d.shell_transformation` |
+| 全体 18×18 剛性 $\mathbf{T}^\top\mathbf{k}\mathbf{T}$ | `shell3d.shell_stiffness_global` |
+| 応力・断面力の回収 | `shell.recover_shell_forces` / `ShellForceResults` |
+| 全体組み立て・自由度マップ | `assembly.assemble_stiffness` / `shell_dof_map` |
+| モデル登録 | `Model.add_shell` / `ShellElement` |
 
 参考: J.-L. Batoz, K.-J. Bathe, L.-W. Ho (1980), "A study of three-node
-triangular plate bending elements", *Int. J. Numer. Methods Eng.* 15.
-E. Dvorkin, K.-J. Bathe (1984), "A continuum mechanics based four-node shell
-element for general non-linear analysis", *Eng. Comput.* 1.
+triangular plate bending elements", *Int. J. Numer. Methods Eng.* 15, 1771–1812.
