@@ -51,3 +51,14 @@ print(f"  右脚 n3: Fx={res.reactions[n3*6+UX]/1e3:7.3f} kN  Fy={res.reactions[
 # 水平方向のつり合い確認: 反力合計 = -外力
 total_fx = res.reactions[n0 * 6 + UX] + res.reactions[n3 * 6 + UX]
 print(f"\n水平反力合計 = {total_fx/1e3:.3f} kN (外力 -10 kN と釣り合う)")
+
+# --- 変形図の描画（matplotlib が必要） ---
+try:
+    from beamfem import viz
+
+    fig, ax = viz.plot_deformed(m, res, scale="auto")
+    viz.savefig("portal_frame_deformed.png", dpi=120)
+    print("\n変形図を portal_frame_deformed.png に保存しました。")
+    # 対話表示したい場合は viz.show() を呼ぶ
+except ImportError:
+    print('\n(matplotlib 未導入のため図はスキップ。pip install -e ".[viz]")')
