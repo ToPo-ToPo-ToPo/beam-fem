@@ -158,6 +158,24 @@ print(res.x, res.mass, res.sections, res.converged)
 補強として妥当な配置になる（`viz.plot_member_sizes` で形態を図示）。荷重の節点化と
 グリラージュ生成は [`builders.py`](../src/beamfem/builders.py)（[8 章](08_code_structure.md)）。
 
+### シェル板＋オフセットリブの連成サイジング
+
+[`examples/ribbed_plate_shell_sizing.py`](../examples/ribbed_plate_shell_sizing.py)：
+膜を曲げ剛性ゼロとみなす上記の近似に対し、**板そのものをフラットシェル**
+（[10 章](10_shell_element.md)）でモデル化し、リブを**剛体オフセット付き梁**
+（[1.5 節](01_fem_theory.md)）として連成させた本格的なリブ補強板のサイジング。
+
+`SizingProblem` は次を扱う:
+
+- **シェル要素**は固定剛性として全体行列に加わる（板厚は設計変数ではない）。
+- **オフセット梁**は剛体腕 $\mathbf{G}$ を含めて剛性・感度・応力回収を行う
+  （`B=T G` を変換として扱い、$EA e^2$ の合成効果を感度に反映）。解析的感度は
+  シェル・オフセットを含めても有限差分と一致する（`tests/test_optimize.py`）。
+
+リブの偏心 $e$ は最適化中は固定（取り付け深さを保ち、断面はその図心まわりで相似
+拡大する近似）。合成効果のため面内自由度 $u_x,u_y$ は内部で自由にし、外周で面内を
+保持する。結果は中央たわみ制約を活かしつつリブ総質量を大きく削減できる。
+
 ## 5.8 離散サイジング（規格サイズ）
 
 実装：[`src/beamfem/optimize/discrete.py`](../src/beamfem/optimize/discrete.py)

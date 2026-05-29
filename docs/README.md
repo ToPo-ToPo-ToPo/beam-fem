@@ -26,7 +26,8 @@
 | [portal_frame_2d](../examples/portal_frame_2d.py) | 2D 門型ラーメン（水平荷重・変形図） |
 | [plate_shell](../examples/plate_shell.py) | 単純支持正方形板のシェル解析（CST+DKT・Navier 解と比較） |
 | [circular_plate_shell](../examples/circular_plate_shell.py) | 円形膜（円板）に等分布荷重（周辺固定/単純支持・Kirchhoff 円板解と比較） |
-| [ribbed_plate_shell](../examples/ribbed_plate_shell.py) | 円形膜のリブ補強（シェル板＋梁リブの連成・補強効果の比較） |
+| [ribbed_plate_shell](../examples/ribbed_plate_shell.py) | 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較） |
+| [ribbed_plate_shell_sizing](../examples/ribbed_plate_shell_sizing.py) | リブ補強板のサイジング最適化（シェル板＋オフセットリブ・たわみ制約下の質量最小化） |
 | [beam_forces](../examples/beam_forces.py) | 単純梁の内力・応力と項目指定出力 |
 | [spider_web_3d](../examples/spider_web_3d.py) | 円形蜘蛛の巣フレーム・面外グリラージュ |
 | [sizing_optimization](../examples/sizing_optimization.py) | 先細り片持ち梁の質量最小化（連続サイジング） |
