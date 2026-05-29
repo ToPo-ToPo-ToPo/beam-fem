@@ -13,6 +13,7 @@ beam-fem/
 │   ├── solver.py          静的線形解析（StaticResult）
 │   ├── forces.py          内力・応力の回収（ForceResults）
 │   ├── viz.py             可視化（matplotlib・任意依存）
+│   ├── builders.py        グリラージュ生成・面分布荷重の等価節点化
 │   ├── workspace.py       出力先 workspace フォルダの管理
 │   └── optimize/
 │       ├── sections.py    ScaledSection（スケール断面ファミリ）
@@ -104,6 +105,15 @@ res = solve_min_volume(gs, sigma_t=..., sigma_c=None, area_min=0.0)
 # res: areas, forces, volume, active(rel_tol)
 ```
 
+### 構造の生成と面荷重
+
+```python
+from beamfem import radial_grillage, lump_pressure
+g = radial_grillage(model, mat, sec, R, n_radial, n_rings)  # 円形リブ・グリラージュ
+# g: center, ring_nodes[k][j], radial_bands[b], rings[k], triangles, interior_nodes()
+total = lump_pressure(model, g.triangles, pressure, dof=UZ, sign=-1.0)  # 圧力->節点荷重
+```
+
 ### 出力先
 
 ```python
@@ -122,6 +132,7 @@ set_workspace("results/case1")   # 既定は ./workspace。相対パス保存は
 | `test_topology.py` | LP の解析解一致・平衡・複数ケース |
 | `test_viz.py` | 描画のスモークテスト（ヘッドレス） |
 | `test_workspace.py` | 出力先の解決 |
+| `test_builders.py` | グリラージュ生成・圧力の節点化・つり合い |
 
 ## 8.5 設計上の不変条件（保守の指針）
 

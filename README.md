@@ -78,6 +78,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/spider_web_3d.py`](examples/spider_web_3d.py) — 円形「蜘蛛の巣」フレームに面分布荷重（面外グリラージュ／3D 曲げ・ねじり）
 - [`examples/sizing_optimization.py`](examples/sizing_optimization.py) — 先細り片持ち梁の質量最小化（サイジング最適化）
 - [`examples/topology_ground_structure.py`](examples/topology_ground_structure.py) — 片持ちトラスの部材配置最適化（Ground Structure 法）
+- [`examples/ribbed_plate_optimization.py`](examples/ribbed_plate_optimization.py) — 円形膜を下から補強するリブ構造の最適化（グリラージュ＋サイジング）
 
 ### 断面サイジング最適化
 

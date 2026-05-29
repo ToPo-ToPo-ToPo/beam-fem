@@ -144,7 +144,21 @@ print(res.x, res.mass, res.sections, res.converged)
 固定端側ほど曲げが大きいため、最適解は**固定端で太く先端で細い先細り**になり、質量を
 約 40% 削減する。
 
-## 5.7 限界と拡張余地
+## 5.7 応用例：円形膜のリブ補強
+
+[`examples/ribbed_plate_optimization.py`](../examples/ribbed_plate_optimization.py)：上から
+一様圧を受ける円形膜を、下面の放射＋同心リング状リブ（グリラージュ）で補強する設計。
+
+- 膜は曲げ剛性を持たないものとし、圧力を分担面積で等価節点荷重へ変換（`builders.lump_pressure`）
+- リブは 3D Timoshenko 梁の**面外曲げ＋ねじり**で荷重を支える（`builders.radial_grillage`）
+- 外周固定・中心/中間のたわみ制約・各リブ応力制約のもと、リブ総質量を最小化
+- 設計変数＝リブのスケール（放射バンド別・リング別）。下限を小さくすると不要リブが細る
+
+結果は **放射リブが支配的（外周側ほど太い）・周方向リングは下限まで縮小** という、円形板の
+補強として妥当な配置になる（`viz.plot_member_sizes` で形態を図示）。荷重の節点化と
+グリラージュ生成は [`builders.py`](../src/beamfem/builders.py)（[8 章](08_code_structure.md)）。
+
+## 5.8 限界と拡張余地
 
 - スケール係数1変数／グループ（多寸法の独立最適化は将来拡張）
 - 座屈・固有振動数制約は未実装

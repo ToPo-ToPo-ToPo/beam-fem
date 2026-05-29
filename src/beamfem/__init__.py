@@ -14,6 +14,7 @@ from .forces import (
     STRESS_COMPONENTS,
 )
 from .workspace import set_workspace, get_workspace
+from .builders import radial_grillage, lump_pressure, Grillage
 
 __version__ = "0.1.0"
 
@@ -31,6 +32,9 @@ __all__ = [
     "STRESS_COMPONENTS",
     "set_workspace",
     "get_workspace",
+    "radial_grillage",
+    "lump_pressure",
+    "Grillage",
     "UX",
     "UY",
     "UZ",
