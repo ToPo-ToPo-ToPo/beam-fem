@@ -6,6 +6,13 @@
 from .material import Material, Section
 from .model import Model, Element, UX, UY, UZ, RX, RY, RZ, DOF_PER_NODE
 from .solver import solve_static, StaticResult
+from .forces import (
+    recover_forces,
+    ForceResults,
+    ElementForces,
+    FORCE_COMPONENTS,
+    STRESS_COMPONENTS,
+)
 
 __version__ = "0.1.0"
 
@@ -16,6 +23,11 @@ __all__ = [
     "Element",
     "solve_static",
     "StaticResult",
+    "recover_forces",
+    "ForceResults",
+    "ElementForces",
+    "FORCE_COMPONENTS",
+    "STRESS_COMPONENTS",
     "UX",
     "UY",
     "UZ",

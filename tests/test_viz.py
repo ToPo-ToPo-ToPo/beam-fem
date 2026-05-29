@@ -67,6 +67,15 @@ def test_plot_deformed_3d():
     matplotlib.pyplot.close(fig)
 
 
+def test_plot_diagram_2d():
+    from beamfem import recover_forces
+
+    m = _portal_2d()
+    fr = recover_forces(m, solve_static(m))
+    fig, ax = viz.plot_diagram(fr, "Mz", scale="auto")
+    matplotlib.pyplot.close(fig)
+
+
 def test_deformed_curve_endpoints_match_nodes():
     """補間曲線の両端が節点変位（scale倍）と一致すること。"""
     m = _portal_2d()

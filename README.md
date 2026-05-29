@@ -13,6 +13,7 @@
 - 解析解（片持ち梁の Timoshenko 厳密たわみ）との一致を pytest で検証済み
 - 2D 面内骨組は `Model.fix_to_plane_xy()` で面外自由度を拘束して解く
 - **変形図の描画**（matplotlib）：要素ごとに形状関数で曲げを滑らかに補間、2D/3D 自動判定、支持・荷重も表示
+- **要素内力・応力の回収**：軸力 N・せん断 Vy/Vz・ねじり T・曲げ My/Mz、および軸/曲げ/合成応力。表・CSV 出力は**表示項目を指定可能**（常に全項目を出さない）。断面力図も描画
 
 ## セットアップ
 
@@ -43,6 +44,27 @@ print(res.node_disp(n1))   # [ux, uy, uz, rx, ry, rz]
 
 2D 門型ラーメンの例は [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py)。
 
+### 内力・応力の出力（項目を指定）
+
+```python
+from beamfem import recover_forces
+
+forces = recover_forces(m, res)
+
+# 表示したい成分だけを選んで出力（常に全項目は出さない）
+forces.print_table(items=["Mz", "Vy"], at="max")          # 要素内の絶対値最大
+forces.print_table(items=["N", "Mz"], at="ends",          # 両端値・特定要素のみ
+                   element_ids=[0, 5])
+forces.to_csv("out.csv", items=["N", "Vy", "Mz", "sigma_max"])
+
+# プログラムから値を取得
+mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
+```
+
+成分キー: 内力 `N, Vy, Vz, T, My, Mz` / 応力 `sigma_a, sigma_b, sigma_max`。
+断面力図は `viz.plot_diagram(forces, "Mz")` で描画。内力・応力の例は
+[`examples/beam_forces.py`](examples/beam_forces.py)。
+
 ## 座標系・規約
 
 - 節点自由度の並び: `[ux, uy, uz, theta_x, theta_y, theta_z]`
@@ -67,7 +89,7 @@ examples/       使用例
 
 - [x] 3D Timoshenko 静解析（検証済み）
 - [x] 変形図の描画（2D/3D）
-- [ ] 要素内力・応力の回収（断面力図用）
+- [x] 要素内力・応力の回収（断面力図・項目指定出力）
 - [ ] 固有値（モーダル）解析
 - [ ] 断面サイジング最適化（解析的感度 + MMA）
 - [ ] トポロジー / 部材配置最適化（Ground Structure 法）

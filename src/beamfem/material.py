@@ -58,6 +58,11 @@ class Section:
     J: float
     ky: float = 5.0 / 6.0
     kz: float = 5.0 / 6.0
+    # 中立軸から縁端までの距離（応力計算用）。cy は局所y方向, cz は局所z方向。
+    # 曲げ応力: Mz 曲げは sigma = Mz*cy/Iz、My 曲げは sigma = My*cz/Iy。
+    # None の場合は曲げ応力を計算できない（軸応力のみ）。
+    cy: float | None = None
+    cz: float | None = None
     name: str = ""
 
     @classmethod
@@ -70,7 +75,7 @@ class Section:
         a = max(b, h) / 2.0
         c = min(b, h) / 2.0
         J = a * c**3 * (16.0 / 3.0 - 3.36 * (c / a) * (1.0 - (c**4) / (12.0 * a**4)))
-        return cls(A=A, Iy=Iy, Iz=Iz, J=J, ky=5.0 / 6.0, kz=5.0 / 6.0, **kw)
+        return cls(A=A, Iy=Iy, Iz=Iz, J=J, ky=5.0 / 6.0, kz=5.0 / 6.0, cy=h / 2.0, cz=b / 2.0, **kw)
 
     @classmethod
     def circle(cls, d: float, **kw) -> "Section":
@@ -80,4 +85,4 @@ class Section:
         A = math.pi * d**2 / 4.0
         I = math.pi * d**4 / 64.0
         J = math.pi * d**4 / 32.0
-        return cls(A=A, Iy=I, Iz=I, J=J, ky=0.9, kz=0.9, **kw)
+        return cls(A=A, Iy=I, Iz=I, J=J, ky=0.9, kz=0.9, cy=d / 2.0, cz=d / 2.0, **kw)

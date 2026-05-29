@@ -256,6 +256,64 @@ def _draw_loads(ax, model: Model, planar: bool):
             ax.quiver(p[0], p[1], p[2], d[0], d[1], d[2], color="tab:green", lw=2)
 
 
+def plot_diagram(
+    forces,
+    component: str,
+    scale: float | str = "auto",
+    n: int = 12,
+    fill: bool = True,
+    ax=None,
+):
+    """断面力図（指定した1成分）を描画して (fig, ax) を返す。
+
+    forces    : ForceResults（recover_forces の戻り値）
+    component : "N","Vy","Vz","T","My","Mz" のいずれか
+    scale     : 値→長さの倍率。"auto" でモデル寸法の約12%に正規化。
+
+    各部材の材軸に直交方向へ値をオフセットして描く。Mz/Vy は局所y、
+    My/Vz は局所z、N/T は局所y方向にプロットする。
+    """
+    model = forces.model
+    planar = _is_planar(model)
+    if ax is None:
+        fig, ax = _new_axes(planar)
+    else:
+        fig = ax.figure
+
+    # オフセット方向（局所軸の選択）: 0=e1(x),1=e2(y),2=e3(z)
+    dir_idx = {"Mz": 1, "Vy": 1, "N": 1, "T": 1, "My": 2, "Vz": 2}.get(component, 1)
+
+    # 自動スケール
+    if scale == "auto":
+        vmax = max((ef.max_abs(component) for ef in forces.elements), default=0.0)
+        scale = (0.12 * _model_size(model) / vmax) if vmax > 0 else 1.0
+
+    xi = np.linspace(0.0, 1.0, n)
+    for e, ef in zip(model.elements, forces.elements):
+        p1, p2 = model.nodes[e.n1], model.nodes[e.n2]
+        R = rotation_matrix(p1, p2, e.vref)
+        d = R[dir_idx]  # 全体座標でのオフセット方向
+        base = p1[None, :] + np.outer(xi, (p2 - p1))
+        vals = ef.value(component, xi)
+        offset = base + scale * np.outer(vals, d)
+
+        # 部材線
+        _plot_line(ax, np.vstack([p1, p2]), planar, color="0.5", lw=1.2, zorder=1)
+        # 図形
+        if fill and planar:
+            xs = np.concatenate([base[:, 0], offset[::-1, 0]])
+            ys = np.concatenate([base[:, 1], offset[::-1, 1]])
+            ax.fill(xs, ys, color="C3", alpha=0.25, zorder=2)
+            # 縦ハッチ（値の縦線）
+            for j in range(n):
+                ax.plot([base[j, 0], offset[j, 0]], [base[j, 1], offset[j, 1]],
+                        color="C3", lw=0.5, alpha=0.5, zorder=2)
+        _plot_line(ax, offset, planar, color="C3", lw=1.6, zorder=3)
+
+    ax.set_title(f"{component} diagram (x{scale:.3g})")
+    return fig, ax
+
+
 def show():
     """matplotlib のウィンドウを表示する（plt.show のラッパ）。"""
     import matplotlib.pyplot as plt
