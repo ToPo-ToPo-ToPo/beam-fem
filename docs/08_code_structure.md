@@ -7,11 +7,13 @@ beam-fem/
 ├── src/beamfem/
 │   ├── __init__.py        トップレベル API の再エクスポート
 │   ├── material.py        Material, Section（断面コンストラクタ）
-│   ├── model.py           Model, Element, 自由度定数, 境界条件・荷重
+│   ├── model.py           Model, Element, ShellElement, 自由度定数, 境界条件・荷重
 │   ├── element3d.py       3D Timoshenko 要素剛性・座標変換・剛性微分
-│   ├── assembly.py        疎行列での全体剛性・荷重組み立て
+│   ├── shell3d.py         三角形フラットシェル要素剛性（CST 膜 + DKT 板曲げ）・座標変換
+│   ├── assembly.py        疎行列での全体剛性・荷重組み立て（梁・シェル混在）
 │   ├── solver.py          静的線形解析（StaticResult）
-│   ├── forces.py          内力・応力の回収（ForceResults）
+│   ├── forces.py          梁の内力・応力の回収（ForceResults）
+│   ├── shell.py           シェルの応力・断面力の回収（ShellForceResults）
 │   ├── viz.py             可視化（matplotlib・任意依存）
 │   ├── builders.py        グリラージュ生成・面分布荷重の等価節点化
 │   ├── workspace.py       出力先 workspace フォルダの管理
@@ -53,9 +55,25 @@ sec = Section.rectangle(b, h)   # circle / pipe / box / i_section / Section(...)
 m = Model()
 n0 = m.add_node(x, y, z)
 e0 = m.add_element(n0, n1, mat, sec, vref=None)
+s0 = m.add_shell(n0, n1, n2, mat, thickness)   # 三角形フラットシェル（3節点6自由度）
 m.fix(node[, dofs]); m.pin(node); m.fix_to_plane_xy()
 m.add_load(node, dof, value)
 ```
+
+### シェル要素
+
+```python
+from beamfem import recover_shell_forces
+
+s = m.add_shell(n0, n1, n2, mat, thickness)   # CST 膜 + DKT 板曲げ
+res = solve_static(m)                          # 梁と同じソルバ（混在可）
+sf = recover_shell_forces(m, res)              # ShellForceResults（要素ローカル系）
+sf.print_table(items=["sx", "sy", "sxy"])      # 膜応力 / Mx,My,Mxy / sbx,sby
+sf[e].get("Mx")                                 # 単位幅あたり曲げモーメント
+```
+
+DKT は薄板理論（せん断変形を無視）。ドリリング θz には微小架空剛性のみ与える
+ため、シェルのみの平面モデルでは θz を拘束する（梁と連成時は不要）。
 
 ### 解析
 
@@ -137,6 +155,7 @@ set_workspace("results/case1")   # 既定は ./workspace。相対パス保存は
 | テスト | 検証内容 |
 |---|---|
 | `test_cantilever.py` | Timoshenko 解析解・要素分割不変性・反力釣り合い |
+| `test_shell.py` | フラットシェル（剛体モード・膜パッチ・単純支持板の Navier 解収束・応力回収） |
 | `test_sections.py` | 各断面諸量・片持ち解析解との一致 |
 | `test_forces.py` | 内力・応力（せん断/モーメント/軸/曲げ応力）の解析解一致 |
 | `test_optimize.py` | 感度 vs 有限差分、MMA vs 解析解／SLSQP |
@@ -153,3 +172,8 @@ set_workspace("results/case1")   # 既定は ./workspace。相対パス保存は
   足すときも同様に。軸・ねじり項を両側に書くと非対角が 2 倍になり平衡が崩れる。
 - 線形ソルバは `solver._solve_sparse` に集約。性能要求時はここを差し替える。
 - 最適化の感度を変更したら、必ず有限差分／解析解と再照合する。
+- **シェルのドリリング自由度 θz** には実剛性が無く架空剛性のみ（`shell3d.DRILLING_FACTOR`）。
+  剛体回転を保つため一様回転に対しゼロとなる形にしてあり、その代償としてシェル
+  のみの平面モデルでは θz の大域スプリアスモードが残る。θz を拘束するか梁と連成
+  させて使う。要素を追加・修正したら剛体モード（6 物理モードのエネルギー≈0）と
+  解析解（単純支持板）への収束を再確認する。

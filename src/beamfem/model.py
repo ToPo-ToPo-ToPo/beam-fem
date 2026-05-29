@@ -30,6 +30,21 @@ class Element:
 
 
 @dataclass
+class ShellElement:
+    """3節点フラットシェル要素（膜 CST + 板曲げ DKT）。
+
+    各節点 6 自由度（梁と共通の並び）。局所座標系は 3 節点の位置から決まる
+    （詳細は :mod:`beamfem.shell3d`）。thickness は板厚 [m]。
+    """
+
+    n1: int
+    n2: int
+    n3: int
+    mat: Material
+    thickness: float
+
+
+@dataclass
 class Model:
     """梁構造モデル。
 
@@ -39,6 +54,7 @@ class Model:
 
     nodes: np.ndarray = field(default_factory=lambda: np.empty((0, 3)))
     elements: list[Element] = field(default_factory=list)
+    shells: list[ShellElement] = field(default_factory=list)
     # 拘束: {(node, local_dof): 強制変位値}。値0で固定支持。
     constraints: dict[tuple[int, int], float] = field(default_factory=dict)
     # 節点荷重: {(node, local_dof): 値}
@@ -62,6 +78,18 @@ class Model:
         """要素を追加しインデックスを返す。"""
         self.elements.append(Element(n1, n2, mat, sec, vref))
         return len(self.elements) - 1
+
+    def add_shell(
+        self,
+        n1: int,
+        n2: int,
+        n3: int,
+        mat: Material,
+        thickness: float,
+    ) -> int:
+        """3節点フラットシェル要素を追加しインデックスを返す。"""
+        self.shells.append(ShellElement(n1, n2, n3, mat, thickness))
+        return len(self.shells) - 1
 
     def fix(self, node: int, dofs: list[int] | None = None) -> None:
         """節点を固定する。dofs 省略時は全6自由度（完全固定）。"""

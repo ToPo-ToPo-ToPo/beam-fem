@@ -3,7 +3,8 @@
 梁モデルの FEM 解析と構造最適化を行うコード。
 
 3D Timoshenko 梁要素（2節点・各節点6自由度）を中核とし、2D 面内骨組も
-同じデータ構造で扱える。疎行列ソルバにより数千〜数万要素規模に対応する。
+同じデータ構造で扱える。**三角形フラットシェル要素（CST 膜 + DKT 板曲げ）**も
+同じ節点6自由度で混在させられる。疎行列ソルバにより数千〜数万要素規模に対応する。
 
 📖 **理論・数式・実装の詳細は [`docs/`](docs/README.md) にまとめている。**
 
@@ -11,6 +12,7 @@
 
 - **3D Timoshenko 梁要素**（せん断変形を考慮、Euler-Bernoulli を極限に含む）
 - 軸・ねじり・2方向曲げ・せん断を統合した 12×12 要素剛性
+- **三角形フラットシェル要素**（3節点・各節点6自由度）：膜＝定ひずみ三角形 CST、板曲げ＝離散 Kirchhoff 三角形 DKT。梁と混在可。単純支持板の Navier 解との一致を pytest で検証済み（誤差 <1%）
 - 疎行列（CSR）による全体剛性の組み立てと直接法ソルバ（後から PARDISO 等へ差替可）
 - 解析解（片持ち梁の Timoshenko 厳密たわみ）との一致を pytest で検証済み
 - 2D 面内骨組は `Model.fix_to_plane_xy()` で面外自由度を拘束して解く
@@ -51,6 +53,39 @@ print(res.node_disp(n1))   # [ux, uy, uz, rx, ry, rz]
 
 2D 門型ラーメンの例は [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py)。
 
+### シェル要素（三角形フラットシェル）
+
+3節点の平面三角形要素で、面内（膜）と面外（板曲げ）を平面内で重ね合わせる。
+膜＝CST（定ひずみ三角形）、板曲げ＝DKT（離散 Kirchhoff 三角形）。各節点6自由度
+なので梁と同じモデルに混在できる。
+
+```python
+from beamfem import Material, Model, solve_static, recover_shell_forces, UX, UY, UZ, RZ
+
+steel = Material(E=200e9, nu=0.3)
+m = Model()
+n0 = m.add_node(0, 0, 0)
+n1 = m.add_node(1, 0, 0)
+n2 = m.add_node(1, 1, 0)
+n3 = m.add_node(0, 1, 0)
+m.add_shell(n0, n1, n2, steel, thickness=0.01)   # 三角形1
+m.add_shell(n0, n2, n3, steel, thickness=0.01)   # 三角形2
+
+res = solve_static(m)
+sf = recover_shell_forces(m, res)         # 膜応力・曲げモーメント（要素ローカル系）
+sf.print_table(items=["sx", "sy", "sxy"])
+sf[0].get("Mx")                            # 単位幅あたり曲げモーメント
+```
+
+応力・断面力は**要素ローカル座標系**で返る（ローカル x は節点1→2 の辺方向、
+法線がローカル z）。成分キー: 膜応力 `sx, sy, sxy` / 曲げモーメント `Mx, My, Mxy`
+/ 曲げ縁端応力 `sbx, sby`（=6M/t²）。
+
+> **注意**：DKT は薄板（Kirchhoff）理論でせん断変形を無視するため、薄肉シェル
+> 向き。面法線まわり回転（ドリリング, θz）には微小な架空剛性のみを与えている
+> ので、**シェルのみの平面モデルでは θz を拘束する**（梁と連成する場合は不要）。
+> 単純支持正方形板の例は [`examples/plate_shell.py`](examples/plate_shell.py)。
+
 ### 内力・応力の出力（項目を指定）
 
 ```python
@@ -75,6 +110,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 ### 例題一覧
 
 - [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py) — 2D 門型ラーメン（水平荷重・変形図）
+- [`examples/plate_shell.py`](examples/plate_shell.py) — 単純支持正方形板のシェル解析（CST+DKT・Navier 解と比較）
 - [`examples/beam_forces.py`](examples/beam_forces.py) — 単純梁の内力・応力と項目指定出力
 - [`examples/spider_web_3d.py`](examples/spider_web_3d.py) — 円形「蜘蛛の巣」フレームに面分布荷重（面外グリラージュ／3D 曲げ・ねじり）
 - [`examples/sizing_optimization.py`](examples/sizing_optimization.py) — 先細り片持ち梁の質量最小化（サイジング最適化）
@@ -158,9 +194,11 @@ forces.to_csv("forces.csv")       # 絶対パスを渡せばそのまま使う
 ```
 src/beamfem/
   material.py   材料・断面（Material, Section）
-  model.py      モデル定義（Node, Element, Model, 境界条件・荷重）
+  model.py      モデル定義（Node, Element, ShellElement, Model, 境界条件・荷重）
   element3d.py  3D Timoshenko 要素剛性と座標変換
-  assembly.py   疎行列での全体剛性・荷重組み立て
+  shell3d.py    三角形フラットシェル要素剛性（CST 膜 + DKT 板曲げ）と座標変換
+  shell.py      シェルの応力・断面力の回収（ShellForceResults）
+  assembly.py   疎行列での全体剛性・荷重組み立て（梁・シェル混在）
   solver.py     静的線形解析ソルバ
 tests/          解析解との比較検証
 examples/       使用例
@@ -173,6 +211,7 @@ examples/       使用例
 - [x] 要素内力・応力の回収（断面力図・項目指定出力）
 - [x] 断面サイジング最適化（解析的感度 + MMA、応力・たわみ制約下の質量最小化）
 - [x] トポロジー／部材配置最適化（Ground Structure 法・トラスLP）
+- [x] 三角形フラットシェル要素（CST 膜 + DKT 板曲げ、単純支持板で検証）
 - [ ] 固有値（モーダル）解析
 - [ ] 断面サイジング最適化（解析的感度 + MMA）
 - [ ] トポロジー / 部材配置最適化（Ground Structure 法）
