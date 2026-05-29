@@ -132,6 +132,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/ribbed_plate_shell.py`](examples/ribbed_plate_shell.py) — 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較）
 - [`examples/ribbed_plate_shell_sizing.py`](examples/ribbed_plate_shell_sizing.py) — リブ補強板のサイジング最適化（シェル板＋オフセットリブ・たわみ制約下の質量最小化）
 - [`examples/ribbed_plate_shell_discrete.py`](examples/ribbed_plate_shell_discrete.py) — リブ補強板の離散サイジング（規格リブ寸法カタログから選定・貪欲法）
+- [`examples/ribbed_plate_layout_study.py`](examples/ribbed_plate_layout_study.py) — 境界条件×制約で最適リブ配置がどう変わるか（単純支持/固定・たわみ/応力の比較）
 - [`examples/beam_forces.py`](examples/beam_forces.py) — 単純梁の内力・応力と項目指定出力
 - [`examples/spider_web_3d.py`](examples/spider_web_3d.py) — 円形「蜘蛛の巣」フレームに面分布荷重（面外グリラージュ／3D 曲げ・ねじり）
 - [`examples/sizing_optimization.py`](examples/sizing_optimization.py) — 先細り片持ち梁の質量最小化（サイジング最適化）
