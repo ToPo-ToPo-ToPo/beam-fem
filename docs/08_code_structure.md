@@ -145,6 +145,7 @@ set_workspace("results/case1")   # 既定は ./workspace。相対パス保存は
 | `test_workspace.py` | 出力先の解決 |
 | `test_builders.py` | グリラージュ生成・圧力の節点化・つり合い |
 | `test_discrete.py` | 離散最適化（貪欲 vs 総当たり大域最適・実行可能性） |
+| `test_rib_count.py` | リブ本数最適化（各構成の実行可能性・本数トレンド） |
 
 ## 8.5 設計上の不変条件（保守の指針）
 
