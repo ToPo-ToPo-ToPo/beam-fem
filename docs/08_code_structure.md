@@ -8,7 +8,7 @@ beam-fem/
 │   ├── __init__.py        トップレベル API の再エクスポート
 │   ├── material.py        Material, Section（断面コンストラクタ）
 │   ├── model.py           Model, Element, ShellElement, 自由度定数, 境界条件・荷重
-│   ├── element3d.py       3D Timoshenko 要素剛性・座標変換・剛性微分
+│   ├── element3d.py       3D Timoshenko 要素剛性・座標変換・剛体オフセット・剛性微分
 │   ├── shell3d.py         三角形フラットシェル要素剛性（CST 膜 + DKT 板曲げ）・座標変換
 │   ├── assembly.py        疎行列での全体剛性・荷重組み立て（梁・シェル混在）
 │   ├── solver.py          静的線形解析（StaticResult）
@@ -54,7 +54,7 @@ sec = Section.rectangle(b, h)   # circle / pipe / box / i_section / Section(...)
 
 m = Model()
 n0 = m.add_node(x, y, z)
-e0 = m.add_element(n0, n1, mat, sec, vref=None)
+e0 = m.add_element(n0, n1, mat, sec, vref=None, offset=None)  # offset で偏心配置（剛体オフセット）
 s0 = m.add_shell(n0, n1, n2, mat, thickness)   # 三角形フラットシェル（3節点6自由度）
 m.fix(node[, dofs]); m.pin(node); m.fix_to_plane_xy()
 m.add_load(node, dof, value)
@@ -156,6 +156,7 @@ set_workspace("results/case1")   # 既定は ./workspace。相対パス保存は
 |---|---|
 | `test_cantilever.py` | Timoshenko 解析解・要素分割不変性・反力釣り合い |
 | `test_shell.py` | フラットシェル（剛体モード・膜パッチ・単純支持板の Navier 解収束・応力回収） |
+| `test_offset.py` | 剛体オフセット梁（剛体腕の性質・剛体リンク明示モデルとの一致・軸-曲げ連成 EA·e²） |
 | `test_sections.py` | 各断面諸量・片持ち解析解との一致 |
 | `test_forces.py` | 内力・応力（せん断/モーメント/軸/曲げ応力）の解析解一致 |
 | `test_optimize.py` | 感度 vs 有限差分、MMA vs 解析解／SLSQP |

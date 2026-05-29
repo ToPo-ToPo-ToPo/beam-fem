@@ -86,6 +86,23 @@ sf[0].get("Mx")                            # 単位幅あたり曲げモーメ�
 > ので、**シェルのみの平面モデルでは θz を拘束する**（梁と連成する場合は不要）。
 > 単純支持正方形板の例は [`examples/plate_shell.py`](examples/plate_shell.py)。
 
+### 剛体オフセット（偏心したリブ・スティフナ）
+
+梁を節点位置からずらして配置するには `add_element(..., offset=...)` を使う。板に
+付くリブを中立面より下げると、板の曲げ回転がリブの軸伸縮を生む**軸-曲げ連成
+（T 形断面の合成剛性 EA·e²）**が立ち上がり、補強効果が大きく増す。
+
+```python
+e = t/2 + h_rib/2                     # 板下面にリブを付ける偏心
+m.add_element(n0, n1, steel, rib,
+              offset=[0, 0, -e])      # リブ図心を板中立面から e 下げる
+```
+
+合成効果はリブの軸力を板の膜が分担して初めて働くため、**面内自由度 UX,UY は
+内部で自由**にし、外周など最小限で面内を保持する。偏心なし（同心）だとリブ軸力が
+立たず効果は出ない。リブ補強円板で「めり込み（e=0）vs 正規オフセット」を比較する
+例は [`examples/ribbed_plate_shell.py`](examples/ribbed_plate_shell.py)。
+
 ### 内力・応力の出力（項目を指定）
 
 ```python
@@ -112,7 +129,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py) — 2D 門型ラーメン（水平荷重・変形図）
 - [`examples/plate_shell.py`](examples/plate_shell.py) — 単純支持正方形板のシェル解析（CST+DKT・Navier 解と比較）
 - [`examples/circular_plate_shell.py`](examples/circular_plate_shell.py) — 円形膜（円板）に等分布荷重（周辺固定/単純支持・Kirchhoff 円板解と比較）
-- [`examples/ribbed_plate_shell.py`](examples/ribbed_plate_shell.py) — 円形膜のリブ補強（シェル板＋梁リブの連成・補強効果の比較）
+- [`examples/ribbed_plate_shell.py`](examples/ribbed_plate_shell.py) — 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較）
 - [`examples/beam_forces.py`](examples/beam_forces.py) — 単純梁の内力・応力と項目指定出力
 - [`examples/spider_web_3d.py`](examples/spider_web_3d.py) — 円形「蜘蛛の巣」フレームに面分布荷重（面外グリラージュ／3D 曲げ・ねじり）
 - [`examples/sizing_optimization.py`](examples/sizing_optimization.py) — 先細り片持ち梁の質量最小化（サイジング最適化）

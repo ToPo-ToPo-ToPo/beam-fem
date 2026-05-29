@@ -20,13 +20,20 @@ UX, UY, UZ, RX, RY, RZ = range(6)
 
 @dataclass
 class Element:
-    """2節点梁要素。"""
+    """2節点梁要素。
+
+    offset を与えると、要素（梁の図心軸）を節点位置から剛体腕でずらして評価する
+    「オフセット梁」になる。リブ・スティフナを板（シェル）の中立面より下げて配置
+    する用途で、軸-曲げ連成（T 形断面の合成剛性 EA·e²）を取り込める。offset は
+    両端共通の全体座標ベクトル（節点→梁図心へのずれ）。
+    """
 
     n1: int  # 節点インデックス
     n2: int
     mat: Material
     sec: Section
     vref: np.ndarray | None = None  # 局所y軸の参照ベクトル（断面の向き）
+    offset: np.ndarray | None = None  # 剛体腕（節点→梁図心, 全体座標, 両端共通）
 
 
 @dataclass
@@ -74,9 +81,14 @@ class Model:
         mat: Material,
         sec: Section,
         vref: np.ndarray | None = None,
+        offset: np.ndarray | None = None,
     ) -> int:
-        """要素を追加しインデックスを返す。"""
-        self.elements.append(Element(n1, n2, mat, sec, vref))
+        """要素を追加しインデックスを返す。
+
+        offset を与えると梁図心を節点から剛体腕でずらすオフセット梁になる
+        （リブ・スティフナの偏心配置, 全体座標・両端共通）。
+        """
+        self.elements.append(Element(n1, n2, mat, sec, vref, offset))
         return len(self.elements) - 1
 
     def add_shell(

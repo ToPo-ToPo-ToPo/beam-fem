@@ -60,7 +60,7 @@ def assemble_stiffness(
     for i, e in enumerate(model.elements):
         p1 = model.nodes[e.n1]
         p2 = model.nodes[e.n2]
-        ke = element_stiffness_global(p1, p2, e.mat, e.sec, e.vref)
+        ke = element_stiffness_global(p1, p2, e.mat, e.sec, e.vref, e.offset)
         dofs = dof_maps[i]
         rr, cc = np.meshgrid(dofs, dofs, indexing="ij")
         sl = slice(i * 144, (i + 1) * 144)
