@@ -127,6 +127,14 @@ $\mathbf{M}=\mathbf{D}_b\mathbf{B}_b\mathbf{q}_b$（単位幅あたり）を返�
 - **膜パッチテスト**：一様引張で変位が線形・応力が一様（CST は厳密）。
 - **単純支持正方形板**：中央たわみが Navier 級数解 $w=0.00406\,qa^4/D$ に収束
   （16×16 分割で誤差 1% 未満、`examples/plate_shell.py`）。
+- **等分布荷重を受ける円板**：中央たわみが Kirchhoff 円板の解析解に収束
+  （`examples/circular_plate_shell.py`, 放射 24×8 分割で誤差 1% 未満）。
+
+$$
+w_{\text{center}}^{\text{clamped}} = \frac{q R^4}{64 D},\qquad
+w_{\text{center}}^{\text{simply supported}} = \frac{5+\nu}{1+\nu}\,\frac{q R^4}{64 D}
+$$
+
 - **応力回収・座標変換不変性**。
 
 参考: J.-L. Batoz, K.-J. Bathe, L.-W. Ho (1980), "A study of three-node

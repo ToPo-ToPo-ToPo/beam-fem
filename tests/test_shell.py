@@ -179,6 +179,69 @@ def test_ss_plate_center_deflection():
     assert abs(w_fine - w_exact) <= abs(w_coarse - w_exact) + 1e-12
 
 
+def _circular_plate_center(n_radial, n_rings, R=1.0, t=0.01, q=2.0e4, clamped=True):
+    """円板を放射分割しシェルで解き、中央たわみを返す。"""
+    m = Model()
+    center = m.add_node(0.0, 0.0, 0.0)
+    ring_nodes = [[center] * n_radial]
+    for k in range(1, n_rings + 1):
+        r = R * k / n_rings
+        ring_nodes.append(
+            [m.add_node(r * np.cos(2 * np.pi * j / n_radial),
+                        r * np.sin(2 * np.pi * j / n_radial), 0.0)
+             for j in range(n_radial)]
+        )
+    tris = []
+    for j in range(n_radial):
+        jn = (j + 1) % n_radial
+        tris.append((center, ring_nodes[1][j], ring_nodes[1][jn]))
+    for k in range(1, n_rings):
+        for j in range(n_radial):
+            jn = (j + 1) % n_radial
+            a, b = ring_nodes[k][j], ring_nodes[k][jn]
+            c, d = ring_nodes[k + 1][jn], ring_nodes[k + 1][j]
+            tris.append((a, b, c))
+            tris.append((a, c, d))
+    for (i, j, k) in tris:
+        m.add_shell(i, j, k, STEEL, t)
+
+    for i in range(m.n_nodes):
+        m.fix(i, [UX, UY, RZ])
+    for nd in ring_nodes[n_rings]:
+        m.fix(nd, [UZ, RX, RY] if clamped else [UZ])
+
+    for (a, b, c) in tris:
+        p1, p2, p3 = m.nodes[a][:2], m.nodes[b][:2], m.nodes[c][:2]
+        area = 0.5 * abs((p2[0] - p1[0]) * (p3[1] - p1[1])
+                         - (p3[0] - p1[0]) * (p2[1] - p1[1]))
+        for nd in (a, b, c):
+            m.add_load(nd, UZ, -q * area / 3.0)
+
+    res = solve_static(m)
+    return res.node_disp(center)[UZ]
+
+
+def test_clamped_circular_plate():
+    """周辺固定の円板の中央たわみが解析解 q R^4/(64 D) に収束する。"""
+    R, t, q = 1.0, 0.01, 2.0e4
+    D = STEEL.E * t**3 / (12.0 * (1.0 - STEEL.nu**2))
+    w_exact = -q * R**4 / (64.0 * D)
+
+    w = _circular_plate_center(24, 8, R, t, q, clamped=True)
+    assert np.isclose(w, w_exact, rtol=0.02), (w, w_exact)
+
+
+def test_simply_supported_circular_plate():
+    """単純支持の円板の中央たわみが解析解 (5+ν)/(1+ν)·q R^4/(64 D) に収束する。"""
+    R, t, q = 1.0, 0.01, 2.0e4
+    nu = STEEL.nu
+    D = STEEL.E * t**3 / (12.0 * (1.0 - nu**2))
+    w_exact = -(5.0 + nu) / (1.0 + nu) * q * R**4 / (64.0 * D)
+
+    w = _circular_plate_center(24, 8, R, t, q, clamped=False)
+    assert np.isclose(w, w_exact, rtol=0.02), (w, w_exact)
+
+
 def test_assembled_stiffness_symmetric():
     """シェルを含む全体剛性が対称。"""
     m, _ = _membrane_patch_model(2, 2)
