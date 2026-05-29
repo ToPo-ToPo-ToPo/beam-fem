@@ -65,6 +65,12 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 断面力図は `viz.plot_diagram(forces, "Mz")` で描画。内力・応力の例は
 [`examples/beam_forces.py`](examples/beam_forces.py)。
 
+### 例題一覧
+
+- [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py) — 2D 門型ラーメン（水平荷重・変形図）
+- [`examples/beam_forces.py`](examples/beam_forces.py) — 単純梁の内力・応力と項目指定出力
+- [`examples/spider_web_3d.py`](examples/spider_web_3d.py) — 円形「蜘蛛の巣」フレームに面分布荷重（面外グリラージュ／3D 曲げ・ねじり）
+
 ## 座標系・規約
 
 - 節点自由度の並び: `[ux, uy, uz, theta_x, theta_y, theta_z]`
