@@ -28,6 +28,7 @@
 | [circular_plate_shell](../examples/circular_plate_shell.py) | 円形膜（円板）に等分布荷重（周辺固定/単純支持・Kirchhoff 円板解と比較） |
 | [ribbed_plate_shell](../examples/ribbed_plate_shell.py) | 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較） |
 | [ribbed_plate_shell_sizing](../examples/ribbed_plate_shell_sizing.py) | リブ補強板のサイジング最適化（シェル板＋オフセットリブ・たわみ制約下の質量最小化） |
+| [ribbed_plate_shell_discrete](../examples/ribbed_plate_shell_discrete.py) | リブ補強板の離散サイジング（規格リブ寸法カタログから選定・貪欲法） |
 | [beam_forces](../examples/beam_forces.py) | 単純梁の内力・応力と項目指定出力 |
 | [spider_web_3d](../examples/spider_web_3d.py) | 円形蜘蛛の巣フレーム・面外グリラージュ |
 | [sizing_optimization](../examples/sizing_optimization.py) | 先細り片持ち梁の質量最小化（連続サイジング） |

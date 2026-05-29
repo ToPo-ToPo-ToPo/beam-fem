@@ -208,8 +208,14 @@ res = solve_discrete_greedy(prob, catalog)             # 共有カタログ
 > - **貪欲解が総当たり（大域最適）と一致**し、関数評価回数は大幅に少ない
 > - 離散解は実行可能で、連続最適（下界）を下回らない
 >
-> 例 [`examples/ribbed_plate_discrete.py`](../examples/ribbed_plate_discrete.py)：規格リブ径
-> から選ぶリブ補強。168 万通りを貪欲探索が約 270 評価で解き、連続比 +数% に収まる。
+> - **シェル板＋オフセットリブの連成**でも貪欲解が大域最適に一致（5.7 の拡張）
+
+例 [`examples/ribbed_plate_discrete.py`](../examples/ribbed_plate_discrete.py)：規格リブ径
+から選ぶリブ補強。168 万通りを貪欲探索が約 270 評価で解き、連続比 +数% に収まる。
+シェル板＋オフセットリブ版は
+[`examples/ribbed_plate_shell_discrete.py`](../examples/ribbed_plate_shell_discrete.py)：
+12 設計変数・7 サイズ（約 138 億通り）を貪欲法が約 1000 評価で解き、規格リブ高さ
+（15〜60 mm）を選定して連続比 +9% 程度に収まる。
 
 ## 5.9 リブ本数の最適化（2 段階）
 
