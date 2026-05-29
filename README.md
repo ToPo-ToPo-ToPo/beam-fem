@@ -15,7 +15,7 @@
 - **変形図の描画**（matplotlib）：要素ごとに形状関数で曲げを滑らかに補間、2D/3D 自動判定、支持・荷重も表示
 - **要素内力・応力の回収**：軸力 N・せん断 Vy/Vz・ねじり T・曲げ My/Mz、および軸/曲げ/合成応力。表・CSV 出力は**表示項目を指定可能**（常に全項目を出さない）。断面力図も描画
 - **多様な断面形状**：矩形・円・I 形（H 形鋼）・箱型（角形鋼管）・パイプ（中空円）、および完全自由な断面（A,I,J 直接指定）
-- **断面サイジング最適化**：応力・たわみ制約下の質量最小化。**解析的感度（直接法）＋ MMA**。解析解・SLSQP と一致を検証済み
+- **断面サイジング最適化**：応力・たわみ制約下の質量最小化。**解析的感度（直接法）＋ MMA**。解析解・SLSQP と一致を検証済み。最適化結果の構造形態（部材サイズ分布）も図示できる
 - **出力は `workspace/` フォルダへ**：図・CSV は相対パス指定で `workspace/` に自動保存（フォルダも自動生成、`set_workspace` で変更可）
 
 ## セットアップ
@@ -89,6 +89,10 @@ prob = SizingProblem(
 )
 res = minimize_mass(prob, maxiter=100, move=0.2)   # 解析的感度 + MMA
 print(res.x, res.mass, res.sections)
+
+# 最適化結果の構造形態を図示（部材の線幅・色＝断面サイズ）
+viz.plot_member_sizes(model, prob.element_values(res.x, kind="area"),
+                      label="cross-section area")
 ```
 
 ## 断面形状

@@ -76,6 +76,19 @@ def test_plot_diagram_2d():
     matplotlib.pyplot.close(fig)
 
 
+def test_plot_member_sizes():
+    import numpy as np
+
+    m = _portal_2d()
+    vals = np.array([1.0, 2.0, 3.0])  # 要素数=3
+    fig, ax = viz.plot_member_sizes(m, vals, label="area")
+    assert len(ax.lines) == len(m.elements)
+    matplotlib.pyplot.close(fig)
+    # 長さ不一致はエラー
+    with pytest.raises(ValueError):
+        viz.plot_member_sizes(m, np.array([1.0, 2.0]))
+
+
 def test_deformed_curve_endpoints_match_nodes():
     """補間曲線の両端が節点変位（scale倍）と一致すること。"""
     m = _portal_2d()

@@ -80,7 +80,14 @@ try:
     res_static = solve_static(m)
     fig2, _ = viz.plot_deformed(m, res_static, scale="auto")
     p2 = viz.savefig("sizing_deformed.png", dpi=120)
-    print(f"\n収束履歴を {p1}、変形図を {p2} に保存しました。")
+
+    # 構造形態の図示（部材の線幅・色＝最適断面積）。先細りが一目で分かる
+    fig3, _ = viz.plot_member_sizes(
+        m, prob.element_values(res.x, kind="area") * 1e4,
+        label="cross-section area [cm^2]",
+    )
+    p3 = viz.savefig("sizing_form.png", dpi=120)
+    print(f"\n収束履歴を {p1}、変形図を {p2}、構造形態を {p3} に保存しました。")
 except ImportError:
     print("\n(matplotlib 未導入のため図はスキップ)")
 

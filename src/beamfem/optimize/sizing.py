@@ -297,3 +297,26 @@ class SizingProblem:
     def current_sections(self, x):
         """設計変数 x に対応する各設計グループの断面を返す。"""
         return {i: dv.family.make(float(x[i])) for i, dv in enumerate(self.design_vars)}
+
+    def element_scales(self, x) -> np.ndarray:
+        """各要素のスケール係数（属する設計変数の値）。非支配要素は 1.0。"""
+        sc = np.ones(len(self.model.elements))
+        for i, dv in enumerate(self.design_vars):
+            for e in dv.elements:
+                sc[e] = float(x[i])
+        return sc
+
+    def element_values(self, x, kind: str = "area") -> np.ndarray:
+        """構造形態の図示用に、各要素の代表量を返す。
+
+        kind : "area"(断面積) / "scale"(スケール係数) / "size"(代表寸法 √A)。
+        """
+        if kind == "scale":
+            return self.element_scales(x)
+        self._apply_x(x)
+        A = np.array([el.sec.A for el in self.model.elements])
+        if kind == "area":
+            return A
+        if kind == "size":
+            return np.sqrt(A)
+        raise ValueError(f"未知の kind: {kind}")

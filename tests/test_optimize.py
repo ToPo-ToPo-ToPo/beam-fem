@@ -136,6 +136,28 @@ def test_mma_matches_slsqp_multivar():
     assert np.isclose(res.mass, sol.fun, rtol=1e-5)
 
 
+def test_element_values_for_form_plot():
+    """構造形態図示用の要素別代表量。"""
+    base = Section.rectangle(b=0.05, h=0.10)
+    m = Model()
+    nodes = [m.add_node(i, 0, 0) for i in range(4)]
+    for i in range(3):
+        m.add_element(nodes[i], nodes[i + 1], STEEL, base)
+    m.fix(nodes[0])
+    dvs = [
+        DesignVar(ScaledSection(base), [0, 1], x0=1.0),
+        DesignVar(ScaledSection(base), [2], x0=1.0),
+    ]
+    prob = SizingProblem(m, dvs)
+    x = np.array([2.0, 0.5])
+    sc = prob.element_scales(x)
+    assert np.allclose(sc, [2.0, 2.0, 0.5])
+    area = prob.element_values(x, kind="area")
+    assert np.isclose(area[0], base.A * 2.0**2)  # A ∝ s^2
+    assert np.isclose(area[2], base.A * 0.5**2)
+    assert np.allclose(prob.element_values(x, kind="size"), np.sqrt(area))
+
+
 def test_duplicate_element_assignment_raises():
     base = Section.circle(d=0.05)
     m, tip = _cantilever(base)

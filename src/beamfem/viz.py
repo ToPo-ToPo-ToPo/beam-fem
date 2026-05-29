@@ -314,6 +314,64 @@ def plot_diagram(
     return fig, ax
 
 
+def plot_member_sizes(
+    model: Model,
+    values,
+    max_width: float = 9.0,
+    min_width: float = 0.8,
+    cmap: str = "viridis",
+    label: str = "",
+    show_colorbar: bool = True,
+    show_undeformed: bool = False,
+    ax=None,
+):
+    """各部材を、与えた値に比例した線幅・色で描く（構造形態の図示）。
+
+    サイジング最適化結果の「どの部材が太く/細くなったか」を可視化する用途。
+    values は要素数と同じ長さの配列（断面スケール・断面積・代表寸法など）。
+    線幅は値に比例、色も値で着色する。2D/3D を自動判定する。
+    """
+    import matplotlib.cm as cm
+    from matplotlib import colormaps
+    from matplotlib.colors import Normalize
+
+    values = np.asarray(values, dtype=float)
+    if len(values) != len(model.elements):
+        raise ValueError("values の長さが要素数と一致しません")
+
+    planar = _is_planar(model)
+    if ax is None:
+        fig, ax = _new_axes(planar)
+    else:
+        fig = ax.figure
+
+    vmin, vmax = float(values.min()), float(values.max())
+    span = vmax - vmin
+    norm = Normalize(vmin=vmin, vmax=vmax if span > 0 else vmin + 1.0)
+    colormap = colormaps[cmap]
+
+    for el, v in zip(model.elements, values):
+        p1, p2 = model.nodes[el.n1], model.nodes[el.n2]
+        if show_undeformed:
+            _plot_line(ax, np.vstack([p1, p2]), planar, color="0.85", lw=0.8, zorder=1)
+        # 線幅: 値を [min_width, max_width] に正規化
+        frac = (v - vmin) / span if span > 0 else 1.0
+        lw = min_width + frac * (max_width - min_width)
+        color = colormap(norm(v))
+        _plot_line(ax, np.vstack([p1, p2]), planar, color=color, lw=lw,
+                   solid_capstyle="round", zorder=2)
+
+    if show_colorbar:
+        sm = cm.ScalarMappable(norm=norm, cmap=colormap)
+        sm.set_array([])
+        cb = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
+        if label:
+            cb.set_label(label)
+
+    ax.set_title(label or "Member sizes")
+    return fig, ax
+
+
 def show():
     """matplotlib のウィンドウを表示する（plt.show のラッパ）。"""
     import matplotlib.pyplot as plt
