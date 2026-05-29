@@ -242,6 +242,75 @@ def test_simply_supported_circular_plate():
     assert np.isclose(w, w_exact, rtol=0.02), (w, w_exact)
 
 
+def test_ribbed_plate_beam_shell_coupling():
+    """シェル板＋梁リブの連成: リブで中央たわみが減り、反力が荷重と釣り合う。"""
+    from beamfem import Material as Mat, Section, recover_forces  # noqa: F401
+    from beamfem.model import DOF_PER_NODE
+
+    R, t, q = 1.0, 0.01, 8.0e3
+    n_radial, n_rings = 12, 5
+    rib = Section.rectangle(b=0.006, h=0.030)
+    vref = np.array([0.0, 0.0, 1.0])
+
+    def build(with_ribs):
+        m = Model()
+        center = m.add_node(0.0, 0.0, 0.0)
+        ring = [[center] * n_radial]
+        for k in range(1, n_rings + 1):
+            r = R * k / n_rings
+            ring.append([m.add_node(r * np.cos(2 * np.pi * j / n_radial),
+                                    r * np.sin(2 * np.pi * j / n_radial), 0.0)
+                         for j in range(n_radial)])
+        tris = []
+        for j in range(n_radial):
+            jn = (j + 1) % n_radial
+            tris.append((center, ring[1][j], ring[1][jn]))
+        for k in range(1, n_rings):
+            for j in range(n_radial):
+                jn = (j + 1) % n_radial
+                a, b = ring[k][j], ring[k][jn]
+                c, d = ring[k + 1][jn], ring[k + 1][j]
+                tris += [(a, b, c), (a, c, d)]
+        for (i, j, k) in tris:
+            m.add_shell(i, j, k, STEEL, t)
+        if with_ribs:
+            for j in range(n_radial):
+                m.add_element(center, ring[1][j], STEEL, rib, vref=vref)
+                for k in range(1, n_rings):
+                    m.add_element(ring[k][j], ring[k + 1][j], STEEL, rib, vref=vref)
+            for k in range(1, n_rings + 1):
+                for j in range(n_radial):
+                    jn = (j + 1) % n_radial
+                    m.add_element(ring[k][j], ring[k][jn], STEEL, rib, vref=vref)
+        for i in range(m.n_nodes):
+            m.fix(i, [UX, UY, RZ])
+        for nd in ring[n_rings]:
+            m.fix(nd, [UZ])
+        for (a, b, c) in tris:
+            p1, p2, p3 = m.nodes[a][:2], m.nodes[b][:2], m.nodes[c][:2]
+            area = 0.5 * abs((p2[0] - p1[0]) * (p3[1] - p1[1])
+                             - (p3[0] - p1[0]) * (p2[1] - p1[1]))
+            for nd in (a, b, c):
+                m.add_load(nd, UZ, -q * area / 3.0)
+        return m, center, ring
+
+    m0, c0, _ = build(False)
+    m1, c1, ring1 = build(True)
+    r0 = solve_static(m0)
+    r1 = solve_static(m1)
+    w0 = r0.node_disp(c0)[UZ]
+    w1 = r1.node_disp(c1)[UZ]
+
+    # リブで中央たわみが有意に小さくなる
+    assert abs(w1) < abs(w0)
+    assert abs(w1) < 0.8 * abs(w0)
+
+    # 鉛直つり合い: 外周反力 = 総荷重
+    total = np.pi * R**2 * q
+    rz = sum(r1.reactions[nd * DOF_PER_NODE + UZ] for nd in ring1[n_rings])
+    assert np.isclose(rz, total, rtol=0.05)
+
+
 def test_assembled_stiffness_symmetric():
     """シェルを含む全体剛性が対称。"""
     m, _ = _membrane_patch_model(2, 2)
