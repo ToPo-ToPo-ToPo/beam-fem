@@ -10,7 +10,8 @@ beam-fem/
 │   ├── model.py           Model, Element, ShellElement, 自由度定数, 境界条件・荷重
 │   ├── element3d.py       3D Timoshenko 要素剛性・座標変換・剛体オフセット・剛性微分
 │   ├── shell3d.py         三角形フラットシェル要素剛性（CST 膜 + DKT 板曲げ）・座標変換
-│   ├── assembly.py        疎行列での全体剛性・荷重組み立て（梁・シェル混在）
+│   ├── shell_mitc4.py     四角形フラットシェル要素剛性（Q4 膜 + MITC4 板曲げ）・座標変換
+│   ├── assembly.py        疎行列での全体剛性・荷重組み立て（梁・三角形/四角形シェル混在）
 │   ├── solver.py          静的線形解析（StaticResult）
 │   ├── forces.py          梁の内力・応力の回収（ForceResults）
 │   ├── shell.py           シェルの応力・断面力の回収（ShellForceResults）
@@ -65,15 +66,18 @@ m.add_load(node, dof, value)
 ```python
 from beamfem import recover_shell_forces
 
-s = m.add_shell(n0, n1, n2, mat, thickness)   # CST 膜 + DKT 板曲げ
-res = solve_static(m)                          # 梁と同じソルバ（混在可）
-sf = recover_shell_forces(m, res)              # ShellForceResults（要素ローカル系）
-sf.print_table(items=["sx", "sy", "sxy"])      # 膜応力 / Mx,My,Mxy / sbx,sby
-sf[e].get("Mx")                                 # 単位幅あたり曲げモーメント
+s = m.add_shell(n0, n1, n2, mat, thickness)         # 三角形: CST 膜 + DKT 板曲げ（薄板）
+q = m.add_quad_shell(n0, n1, n2, n3, mat, thickness)  # 四角形: Q4 膜 + MITC4 板曲げ（厚板可）
+res = solve_static(m)                                # 梁と同じソルバ（混在可）
+sf = recover_shell_forces(m, res)                    # 三角形シェルの応力・断面力（要素ローカル系）
+sf.print_table(items=["sx", "sy", "sxy"])            # 膜応力 / Mx,My,Mxy / sbx,sby
 ```
 
-DKT は薄板理論（せん断変形を無視）。ドリリング θz には微小架空剛性のみ与える
-ため、シェルのみの平面モデルでは θz を拘束する（梁と連成時は不要）。
+DKT（三角形）は薄板理論（せん断変形を無視）。MITC4（四角形）は Mindlin-Reissner
+で横せん断を含み、仮定ひずみ（タイング）で薄板のロックを回避するため厚板にも
+対応する。いずれもドリリング θz には微小架空剛性のみ与えるため、シェルのみの
+平面モデルでは θz を拘束する（梁と連成時は不要）。応力回収 `recover_shell_forces`
+は現状 3 節点シェル（`shells`）が対象。
 
 ### 解析
 
@@ -155,7 +159,8 @@ set_workspace("results/case1")   # 既定は ./workspace。相対パス保存は
 | テスト | 検証内容 |
 |---|---|
 | `test_cantilever.py` | Timoshenko 解析解・要素分割不変性・反力釣り合い |
-| `test_shell.py` | フラットシェル（剛体モード・膜パッチ・単純支持板の Navier 解収束・応力回収） |
+| `test_shell.py` | 三角形フラットシェル（剛体モード・膜パッチ・単純支持板の Navier 解収束・応力回収） |
+| `test_mitc4.py` | 四角形 MITC4（剛体モード・薄板ロックなし・厚板せん断・膜パッチ・単純支持板収束） |
 | `test_offset.py` | 剛体オフセット梁（剛体腕の性質・剛体リンク明示モデルとの一致・軸-曲げ連成 EA·e²） |
 | `test_sections.py` | 各断面諸量・片持ち解析解との一致 |
 | `test_forces.py` | 内力・応力（せん断/モーメント/軸/曲げ応力）の解析解一致 |

@@ -4,7 +4,10 @@
 """
 
 from .material import Material, Section
-from .model import Model, Element, ShellElement, UX, UY, UZ, RX, RY, RZ, DOF_PER_NODE
+from .model import (
+    Model, Element, ShellElement, QuadShellElement,
+    UX, UY, UZ, RX, RY, RZ, DOF_PER_NODE,
+)
 from .solver import solve_static, StaticResult
 from .forces import (
     recover_forces,
@@ -25,6 +28,7 @@ __all__ = [
     "Model",
     "Element",
     "ShellElement",
+    "QuadShellElement",
     "solve_static",
     "StaticResult",
     "recover_shell_forces",

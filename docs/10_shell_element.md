@@ -155,5 +155,39 @@ $$
 
 - **応力回収・座標変換不変性**。
 
+## 10.9 四角形フラットシェル MITC4（厚板対応）
+
+3 節点 DKT は薄板（Kirchhoff）専用だが、4 節点 **MITC4**（`shell_mitc4.py`）は
+**Mindlin-Reissner 板**（横せん断変形込み）なので厚板から薄板まで扱える。膜は
+Q4 平面応力、ドリリングは三角形と同じ架空剛性、各節点 6 自由度で梁・三角形シェル
+と混在できる（`Model.add_quad_shell`、節点は反時計まわり）。
+
+### 板曲げ（Mindlin + 仮定横せん断）
+
+回転 $\theta_x,\theta_y$ とたわみ $w$ を独立に双一次補間する。曲げ曲率は DKT と同じ
+規約（$\kappa_x=\partial\theta_y/\partial x$ など）。横せん断ひずみ
+
+$$\gamma_{xz}=\partial w/\partial x+\theta_y,\qquad \gamma_{yz}=\partial w/\partial y-\theta_x$$
+
+を素直に補間すると薄板で**せん断ロック**するため、**MITC4**（Dvorkin-Bathe）で
+共変横せん断を辺中点 $A(0,\!-1),B(1,\!0),C(0,\!1),D(\!-1,\!0)$ でサンプルし
+
+$$\gamma_\xi=\tfrac12(1-\eta)\gamma_\xi^A+\tfrac12(1+\eta)\gamma_\xi^C,\quad
+  \gamma_\eta=\tfrac12(1-\xi)\gamma_\eta^D+\tfrac12(1+\xi)\gamma_\eta^B$$
+
+と仮定し、$[\gamma_{xz},\gamma_{yz}]^\top=\mathbf{J}^{-1}[\gamma_\xi,\gamma_\eta]^\top$ で
+デカルト成分へ戻す。要素剛性は曲げ $\mathbf{D}_b$ と横せん断
+$\mathbf{D}_s=k\,G\,t\,\mathbf{I}_2$（$k=5/6$）を 2×2 ガウスで積分する。
+
+### 検証（`tests/test_mitc4.py` / `examples/plate_mitc4.py`）
+
+- **剛体モード**：$w$ 並進・$\theta_x,\theta_y$ 回転でゼロエネルギー。
+- **薄板でロックしない**：$a/t=1000$ の単純支持板が Kirchhoff(Navier) 解へ収束
+  （16×16 で誤差 <1%、粗メッシュでも過小評価しない）。
+- **厚板のせん断変形**：$a/t=10$ で Kirchhoff より $\sim$12% 大きいたわみへ収束。
+- **膜パッチ（Q4）・座標変換不変性**。
+
 参考: J.-L. Batoz, K.-J. Bathe, L.-W. Ho (1980), "A study of three-node
 triangular plate bending elements", *Int. J. Numer. Methods Eng.* 15.
+E. Dvorkin, K.-J. Bathe (1984), "A continuum mechanics based four-node shell
+element for general non-linear analysis", *Eng. Comput.* 1.

@@ -17,14 +17,15 @@
 | [7. 可視化](07_visualization.md) | 変形図・断面力図・構造形態図 | `viz.py` |
 | [8. コード構成](08_code_structure.md) | モジュール構成と API 一覧 | パッケージ全体 |
 | [9. 構造生成と面荷重](09_builders_loads.md) | グリラージュ生成・面分布荷重の節点化 | `builders.py` |
-| [10. シェル要素](10_shell_element.md) | 三角形フラットシェル（CST 膜 + DKT 板曲げ）・ドリリング・応力回収 | `shell3d.py`, `shell.py` |
+| [10. シェル要素](10_shell_element.md) | 三角形（CST+DKT）・四角形 MITC4（Q4+Mindlin）フラットシェル・ドリリング・応力回収 | `shell3d.py`, `shell_mitc4.py`, `shell.py` |
 
 ## 例題
 
 | 例 | 内容 |
 |---|---|
 | [portal_frame_2d](../examples/portal_frame_2d.py) | 2D 門型ラーメン（水平荷重・変形図） |
-| [plate_shell](../examples/plate_shell.py) | 単純支持正方形板のシェル解析（CST+DKT・Navier 解と比較） |
+| [plate_shell](../examples/plate_shell.py) | 単純支持正方形板のシェル解析（三角形 CST+DKT・Navier 解と比較） |
+| [plate_mitc4](../examples/plate_mitc4.py) | 単純支持板の MITC4 四角形シェル解析（薄板/厚板・せん断変形と収束） |
 | [circular_plate_shell](../examples/circular_plate_shell.py) | 円形膜（円板）に等分布荷重（周辺固定/単純支持・Kirchhoff 円板解と比較） |
 | [ribbed_plate_shell](../examples/ribbed_plate_shell.py) | 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較） |
 | [ribbed_plate_shell_sizing](../examples/ribbed_plate_shell_sizing.py) | リブ補強板のサイジング最適化（シェル板＋オフセットリブ・たわみ制約下の質量最小化） |
@@ -53,7 +54,7 @@
 ## 実装済み機能の総覧
 
 - **解析**：3D Timoshenko 梁の静的線形解析（2D 面内骨組も）、内力・応力の回収
-- **シェル**：三角形フラットシェル（CST 膜 + DKT 板曲げ、各節点6自由度・梁と混在可）
+- **シェル**：三角形（CST+DKT, 薄板）・四角形 MITC4（Q4+Mindlin, 厚板〜薄板）フラットシェル（各節点6自由度・梁と混在可）
 - **断面**：矩形・円・パイプ・箱型・I 形・自由断面
 - **可視化**：変形図・断面力図・構造形態図・トラス配置図
 - **サイジング最適化**：連続（解析的感度＋MMA）／離散（カタログ）／リブ本数（2段階）。

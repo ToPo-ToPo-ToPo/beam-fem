@@ -12,7 +12,8 @@
 
 - **3D Timoshenko 梁要素**（せん断変形を考慮、Euler-Bernoulli を極限に含む）
 - 軸・ねじり・2方向曲げ・せん断を統合した 12×12 要素剛性
-- **三角形フラットシェル要素**（3節点・各節点6自由度）：膜＝定ひずみ三角形 CST、板曲げ＝離散 Kirchhoff 三角形 DKT。梁と混在可。単純支持板の Navier 解との一致を pytest で検証済み（誤差 <1%）
+- **三角形フラットシェル要素**（3節点・各節点6自由度）：膜＝定ひずみ三角形 CST、板曲げ＝離散 Kirchhoff 三角形 DKT（薄板）。梁と混在可。単純支持板の Navier 解との一致を pytest で検証済み（誤差 <1%）
+- **四角形フラットシェル要素 MITC4**（4節点・各節点6自由度）：膜＝Q4、板曲げ＝MITC4（Mindlin-Reissner＋仮定横せん断）。**厚板〜薄板に対応**（せん断ロックなし）。Timoshenko 梁と同じくせん断変形を含む
 - 疎行列（CSR）による全体剛性の組み立てと直接法ソルバ（後から PARDISO 等へ差替可）
 - 解析解（片持ち梁の Timoshenko 厳密たわみ）との一致を pytest で検証済み
 - 2D 面内骨組は `Model.fix_to_plane_xy()` で面外自由度を拘束して解く
@@ -86,6 +87,21 @@ sf[0].get("Mx")                            # 単位幅あたり曲げモーメ�
 > ので、**シェルのみの平面モデルでは θz を拘束する**（梁と連成する場合は不要）。
 > 単純支持正方形板の例は [`examples/plate_shell.py`](examples/plate_shell.py)。
 
+#### 四角形フラットシェル MITC4（厚板対応）
+
+`add_quad_shell(n1, n2, n3, n4, mat, thickness)` で 4 節点要素を追加する（節点は
+反時計まわり）。板曲げは **MITC4（Mindlin-Reissner ＋ 仮定横せん断ひずみ）** で、
+横せん断変形を含むため**厚板から薄板まで**扱え、薄板でもせん断ロックしない。
+
+```python
+m.add_quad_shell(n0, n1, n2, n3, steel, thickness=0.01)   # 反時計まわり
+res = solve_static(m)
+```
+
+薄板では Kirchhoff(Navier) 解に収束、厚板ではせん断変形ぶんたわみが増える挙動を
+[`examples/plate_mitc4.py`](examples/plate_mitc4.py) で確認できる。三角形 DKT
+（`add_shell`）と同じ 6 自由度なので、梁・三角形シェルと混在できる。
+
 ### 剛体オフセット（偏心したリブ・スティフナ）
 
 梁を節点位置からずらして配置するには `add_element(..., offset=...)` を使う。板に
@@ -127,7 +143,8 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 ### 例題一覧
 
 - [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py) — 2D 門型ラーメン（水平荷重・変形図）
-- [`examples/plate_shell.py`](examples/plate_shell.py) — 単純支持正方形板のシェル解析（CST+DKT・Navier 解と比較）
+- [`examples/plate_shell.py`](examples/plate_shell.py) — 単純支持正方形板のシェル解析（三角形 CST+DKT・Navier 解と比較）
+- [`examples/plate_mitc4.py`](examples/plate_mitc4.py) — 単純支持板の MITC4 四角形シェル解析（薄板/厚板・せん断変形と収束）
 - [`examples/circular_plate_shell.py`](examples/circular_plate_shell.py) — 円形膜（円板）に等分布荷重（周辺固定/単純支持・Kirchhoff 円板解と比較）
 - [`examples/ribbed_plate_shell.py`](examples/ribbed_plate_shell.py) — 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較）
 - [`examples/ribbed_plate_shell_sizing.py`](examples/ribbed_plate_shell_sizing.py) — リブ補強板のサイジング最適化（シェル板＋オフセットリブ・たわみ制約下の質量最小化）
@@ -219,6 +236,7 @@ src/beamfem/
   model.py      モデル定義（Node, Element, ShellElement, Model, 境界条件・荷重）
   element3d.py  3D Timoshenko 要素剛性と座標変換
   shell3d.py    三角形フラットシェル要素剛性（CST 膜 + DKT 板曲げ）と座標変換
+  shell_mitc4.py 四角形フラットシェル要素剛性（Q4 膜 + MITC4 板曲げ）と座標変換
   shell.py      シェルの応力・断面力の回収（ShellForceResults）
   assembly.py   疎行列での全体剛性・荷重組み立て（梁・シェル混在）
   solver.py     静的線形解析ソルバ
@@ -234,6 +252,7 @@ examples/       使用例
 - [x] 断面サイジング最適化（解析的感度 + MMA、応力・たわみ制約下の質量最小化）
 - [x] トポロジー／部材配置最適化（Ground Structure 法・トラスLP）
 - [x] 三角形フラットシェル要素（CST 膜 + DKT 板曲げ、単純支持板で検証）
+- [x] 四角形フラットシェル要素 MITC4（Q4 膜 + Mindlin 板曲げ、厚板〜薄板・ロックなし）
 - [ ] 固有値（モーダル）解析
 - [ ] 断面サイジング最適化（解析的感度 + MMA）
 - [ ] トポロジー / 部材配置最適化（Ground Structure 法）
