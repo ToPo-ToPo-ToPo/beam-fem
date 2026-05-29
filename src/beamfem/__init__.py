@@ -13,6 +13,7 @@ from .forces import (
     FORCE_COMPONENTS,
     STRESS_COMPONENTS,
 )
+from .workspace import set_workspace, get_workspace
 
 __version__ = "0.1.0"
 
@@ -28,6 +29,8 @@ __all__ = [
     "ElementForces",
     "FORCE_COMPONENTS",
     "STRESS_COMPONENTS",
+    "set_workspace",
+    "get_workspace",
     "UX",
     "UY",
     "UZ",

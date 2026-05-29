@@ -195,10 +195,13 @@ class ForceResults:
         """指定した項目のみを標準出力に表示する。"""
         print(self.table(items=items, at=at, element_ids=element_ids))
 
-    def to_csv(self, path: str, items=FORCE_COMPONENTS, at: str = "ends") -> None:
-        """指定した項目を CSV 出力する。"""
+    def to_csv(self, path: str, items=FORCE_COMPONENTS, at: str = "ends") -> str:
+        """指定した項目を CSV 出力する。相対パスは workspace フォルダに保存し、保存先を返す。"""
         import csv
 
+        from .workspace import resolve
+
+        path = resolve(path)
         items = list(items)
         with open(path, "w", newline="") as fp:
             w = csv.writer(fp)
@@ -209,6 +212,7 @@ class ForceResults:
                 else:
                     w.writerow([i, "n1"] + [ef.get_ends(c)[0] for c in items])
                     w.writerow([i, "n2"] + [ef.get_ends(c)[1] for c in items])
+        return path
 
     def as_dict(self, items=FORCE_COMPONENTS, at: str = "ends") -> dict:
         """プログラムからの利用向けに辞書で返す。"""

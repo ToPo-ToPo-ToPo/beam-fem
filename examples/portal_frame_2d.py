@@ -57,8 +57,8 @@ try:
     from beamfem import viz
 
     fig, ax = viz.plot_deformed(m, res, scale="auto")
-    viz.savefig("portal_frame_deformed.png", dpi=120)
-    print("\n変形図を portal_frame_deformed.png に保存しました。")
+    path = viz.savefig("portal_frame_deformed.png", dpi=120)
+    print(f"\n変形図を {path} に保存しました。")
     # 対話表示したい場合は viz.show() を呼ぶ
 except ImportError:
     print('\n(matplotlib 未導入のため図はスキップ。pip install -e ".[viz]")')

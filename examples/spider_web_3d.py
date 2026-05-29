@@ -113,9 +113,9 @@ try:
     from beamfem import viz
 
     fig1, _ = viz.plot_deformed(m, res, scale="auto")
-    viz.savefig("spider_web_deformed.png", dpi=120)
+    p1 = viz.savefig("spider_web_deformed.png", dpi=120)
     fig2, _ = viz.plot_diagram(forces, "Mz", scale="auto")
-    viz.savefig("spider_web_Mz.png", dpi=120)
-    print("\n変形図を spider_web_deformed.png、Mz 図を spider_web_Mz.png に保存しました。")
+    p2 = viz.savefig("spider_web_Mz.png", dpi=120)
+    print(f"\n変形図を {p1}、Mz 図を {p2} に保存しました。")
 except ImportError:
     print('\n(matplotlib 未導入のため図はスキップ)')

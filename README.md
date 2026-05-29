@@ -14,6 +14,8 @@
 - 2D 面内骨組は `Model.fix_to_plane_xy()` で面外自由度を拘束して解く
 - **変形図の描画**（matplotlib）：要素ごとに形状関数で曲げを滑らかに補間、2D/3D 自動判定、支持・荷重も表示
 - **要素内力・応力の回収**：軸力 N・せん断 Vy/Vz・ねじり T・曲げ My/Mz、および軸/曲げ/合成応力。表・CSV 出力は**表示項目を指定可能**（常に全項目を出さない）。断面力図も描画
+- **多様な断面形状**：矩形・円・I 形（H 形鋼）・箱型（角形鋼管）・パイプ（中空円）、および完全自由な断面（A,I,J 直接指定）
+- **出力は `workspace/` フォルダへ**：図・CSV は相対パス指定で `workspace/` に自動保存（フォルダも自動生成、`set_workspace` で変更可）
 
 ## セットアップ
 
@@ -70,6 +72,32 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py) — 2D 門型ラーメン（水平荷重・変形図）
 - [`examples/beam_forces.py`](examples/beam_forces.py) — 単純梁の内力・応力と項目指定出力
 - [`examples/spider_web_3d.py`](examples/spider_web_3d.py) — 円形「蜘蛛の巣」フレームに面分布荷重（面外グリラージュ／3D 曲げ・ねじり）
+
+## 断面形状
+
+```python
+Section.rectangle(b=0.1, h=0.2)              # 矩形
+Section.circle(d=0.05)                        # 中実円
+Section.pipe(d=0.1, t=0.005)                  # 中空円（パイプ）
+Section.box(b=0.2, h=0.3, t=0.01)             # 箱型（角形鋼管）
+Section.i_section(h=0.3, bf=0.15, tf=0.012, tw=0.008)  # I 形（H 形鋼）
+Section(A=..., Iy=..., Iz=..., J=..., cy=..., cz=...)   # 完全自由
+```
+
+`Iz` が局所 z 軸まわり（面内 x-y 曲げ）、`Iy` が局所 y 軸まわり（面外 x-z 曲げ）。
+I 形は `Iz` が強軸。せん断係数 `ky, kz` は各断面で妥当な近似値を自動設定し、
+キーワードで上書きもできる。応力計算には縁端距離 `cy, cz` を使う。
+
+## 出力先（workspace）
+
+図・CSV は相対パスを渡すと `workspace/` フォルダに保存される（自動生成）。
+
+```python
+from beamfem import set_workspace
+set_workspace("results/case1")   # 出力先を変更（既定は ./workspace）
+viz.savefig("deformed.png")       # -> results/case1/deformed.png
+forces.to_csv("forces.csv")       # 絶対パスを渡せばそのまま使う
+```
 
 ## 座標系・規約
 

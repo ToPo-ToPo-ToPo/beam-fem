@@ -7,7 +7,8 @@
 from beamfem import Material, Section, Model, solve_static, recover_forces, UY
 
 STEEL = Material(E=200e9, nu=0.3)
-sec = Section.rectangle(b=0.1, h=0.2)
+# I 形断面（H 形鋼）。他に rectangle / box / pipe / circle / i_section が使える。
+sec = Section.i_section(h=0.3, bf=0.15, tf=0.012, tw=0.008)
 
 # 単純梁: スパン4m を 10要素に分割、中央に下向き 10 kN
 n, span, P = 10, 4.0, 10_000.0
@@ -33,16 +34,16 @@ forces.print_table(items=["sigma_max"], at="max")
 print("\n◆ 特定要素のみ・両端値（要素0と中央要素）")
 forces.print_table(items=["N", "Mz"], at="ends", element_ids=[0, n // 2])
 
-# --- CSV 出力（項目指定） -------------------------------------------
-forces.to_csv("beam_forces.csv", items=["N", "Vy", "Mz", "sigma_max"], at="ends")
-print("\nCSV を beam_forces.csv に保存しました（項目: N, Vy, Mz, sigma_max）。")
+# --- CSV 出力（項目指定）。相対パスは workspace/ に保存される ---------
+csv_path = forces.to_csv("beam_forces.csv", items=["N", "Vy", "Mz", "sigma_max"], at="ends")
+print(f"\nCSV を {csv_path} に保存しました（項目: N, Vy, Mz, sigma_max）。")
 
 # --- 断面力図（指定した成分のみ描画） -------------------------------
 try:
     from beamfem import viz
 
     fig, ax = viz.plot_diagram(forces, "Mz", scale="auto")
-    viz.savefig("beam_Mz_diagram.png", dpi=120)
-    print("曲げモーメント図を beam_Mz_diagram.png に保存しました。")
+    png_path = viz.savefig("beam_Mz_diagram.png", dpi=120)
+    print(f"曲げモーメント図を {png_path} に保存しました。")
 except ImportError:
     print('(matplotlib 未導入のため図はスキップ)')

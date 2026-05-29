@@ -221,3 +221,6 @@ __marimo__/
 *.png
 !docs/**/*.png
 *.csv
+
+# 解析結果の出力先
+workspace/

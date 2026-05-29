@@ -321,7 +321,12 @@ def show():
     plt.show()
 
 
-def savefig(path: str, **kw):
+def savefig(path: str, **kw) -> str:
+    """図を保存する。相対パスは workspace フォルダ内に保存され、保存先を返す。"""
     import matplotlib.pyplot as plt
 
-    plt.savefig(path, **kw)
+    from .workspace import resolve
+
+    full = resolve(path)
+    plt.savefig(full, **kw)
+    return full
