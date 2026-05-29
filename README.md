@@ -81,6 +81,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/topology_ground_structure.py`](examples/topology_ground_structure.py) — 片持ちトラスの部材配置最適化（Ground Structure 法）
 - [`examples/ribbed_plate_optimization.py`](examples/ribbed_plate_optimization.py) — 円形膜を下から補強するリブ構造の最適化（グリラージュ＋サイジング）
 - [`examples/ribbed_plate_discrete.py`](examples/ribbed_plate_discrete.py) — 上記の離散版（規格リブ径から選定）
+- [`examples/ribbed_plate_count_optimization.py`](examples/ribbed_plate_count_optimization.py) — リブ本数（放射数・リング数）の最適化（2段階＋膜スパン制約）
 
 ### 断面サイジング最適化
 
