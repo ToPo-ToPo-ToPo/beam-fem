@@ -27,6 +27,7 @@
 | [plate_shell](../examples/plate_shell.py) | 単純支持正方形板のシェル解析（三角形 CST+DKT・Navier 解と比較） |
 | [plate_mitc4](../examples/plate_mitc4.py) | 単純支持板の MITC4 四角形シェル解析（薄板/厚板・せん断変形と収束） |
 | [ribbed_plate_quad_sizing](../examples/ribbed_plate_quad_sizing.py) | 四角形シェル板＋オフセットリブのサイジング最適化＋四角形シェル応力回収 |
+| [ribbed_plate_quad_discrete](../examples/ribbed_plate_quad_discrete.py) | 同・離散サイジング（規格リブ寸法・総当たり大域最適と貪欲法の一致） |
 | [circular_plate_shell](../examples/circular_plate_shell.py) | 円形膜（円板）に等分布荷重（周辺固定/単純支持・Kirchhoff 円板解と比較） |
 | [ribbed_plate_shell](../examples/ribbed_plate_shell.py) | 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較） |
 | [ribbed_plate_shell_sizing](../examples/ribbed_plate_shell_sizing.py) | リブ補強板のサイジング最適化（シェル板＋オフセットリブ・たわみ制約下の質量最小化） |

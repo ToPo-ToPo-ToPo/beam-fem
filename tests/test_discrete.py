@@ -121,6 +121,46 @@ def test_discrete_ribbed_shell_offset_greedy_matches_exhaustive():
     assert gr.constraints.max() <= 1e-6
 
 
+def _ribbed_quad_problem():
+    """四角形 MITC4 シェル板＋オフセットリブ（片持ち板）の離散サイジング問題。"""
+    t = 0.01
+    rib = Section.rectangle(b=0.006, h=0.030)
+    e = t / 2 + 0.030 / 2
+    vref = [0.0, 0.0, 1.0]
+    m = Model()
+    n00 = m.add_node(0.0, 0.0, 0.0)
+    n10 = m.add_node(1.0, 0.0, 0.0)
+    n11 = m.add_node(1.0, 1.0, 0.0)
+    n01 = m.add_node(0.0, 1.0, 0.0)
+    m.add_quad_shell(n00, n10, n11, n01, STEEL, t)
+    r0 = m.add_element(n00, n10, STEEL, rib, vref=vref, offset=[0, 0, -e])
+    r1 = m.add_element(n00, n11, STEEL, rib, vref=vref, offset=[0, 0, -e])
+    for nd in (n00, n10, n11, n01):
+        m.fix(nd, [RZ])
+    m.fix(n00)
+    m.fix(n01)
+    m.add_load(n11, UZ, -3000.0)
+    m.add_load(n10, UZ, -1500.0)
+    dvs = [
+        DesignVar(ScaledSection(rib), [r0], x0=1.5, xmin=0.5, xmax=3.0),
+        DesignVar(ScaledSection(rib), [r1], x0=1.5, xmin=0.5, xmax=3.0),
+    ]
+    return SizingProblem(m, dvs, sigma_allow=1e9,
+                         disp_limits=[DispLimit(n11, UZ, 0.020)])
+
+
+def test_discrete_quad_shell_offset_greedy_matches_exhaustive():
+    """四角形シェル板＋オフセットリブの離散サイジングで貪欲解が大域最適と一致。"""
+    prob = _ribbed_quad_problem()
+    catalog = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+    ex = solve_discrete_exhaustive(prob, catalog)
+    gr = solve_discrete_greedy(prob, catalog)
+    assert ex.feasible and gr.feasible
+    assert gr.indices == ex.indices
+    assert np.isclose(gr.mass, ex.mass)
+    assert gr.constraints.max() <= 1e-6
+
+
 def test_exhaustive_too_many_combos_raises():
     prob = _indeterminate_problem()
     with pytest.raises(ValueError):
