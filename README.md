@@ -102,6 +102,12 @@ res = solve_static(m)
 [`examples/plate_mitc4.py`](examples/plate_mitc4.py) で確認できる。三角形 DKT
 （`add_shell`）と同じ 6 自由度なので、梁・三角形シェルと混在できる。
 
+**応力回収・最適化**：`recover_shell_forces` は 3 節点・4 節点シェルの両方を回収し、
+四角形分は `sf.quad_shells` に格納する（要素中心の膜応力・曲げモーメント）。
+四角形シェルはサイジング最適化（`SizingProblem`）にも固定剛性として組み込まれる
+ので、四角形シェル板＋オフセットリブのリブ寸法最適化が解ける
+（[`examples/ribbed_plate_quad_sizing.py`](examples/ribbed_plate_quad_sizing.py)）。
+
 ### 剛体オフセット（偏心したリブ・スティフナ）
 
 梁を節点位置からずらして配置するには `add_element(..., offset=...)` を使う。板に
@@ -145,6 +151,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py) — 2D 門型ラーメン（水平荷重・変形図）
 - [`examples/plate_shell.py`](examples/plate_shell.py) — 単純支持正方形板のシェル解析（三角形 CST+DKT・Navier 解と比較）
 - [`examples/plate_mitc4.py`](examples/plate_mitc4.py) — 単純支持板の MITC4 四角形シェル解析（薄板/厚板・せん断変形と収束）
+- [`examples/ribbed_plate_quad_sizing.py`](examples/ribbed_plate_quad_sizing.py) — 四角形シェル板＋オフセットリブのサイジング最適化と四角形シェルの応力回収
 - [`examples/circular_plate_shell.py`](examples/circular_plate_shell.py) — 円形膜（円板）に等分布荷重（周辺固定/単純支持・Kirchhoff 円板解と比較）
 - [`examples/ribbed_plate_shell.py`](examples/ribbed_plate_shell.py) — 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較）
 - [`examples/ribbed_plate_shell_sizing.py`](examples/ribbed_plate_shell_sizing.py) — リブ補強板のサイジング最適化（シェル板＋オフセットリブ・たわみ制約下の質量最小化）

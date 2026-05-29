@@ -167,7 +167,9 @@ print(res.x, res.mass, res.sections, res.converged)
 
 `SizingProblem` は次を扱う:
 
-- **シェル要素**は固定剛性として全体行列に加わる（板厚は設計変数ではない）。
+- **シェル要素**（3 節点 CST+DKT・4 節点 MITC4 の両方）は固定剛性として全体行列に
+  加わる（板厚は設計変数ではない）。四角形シェル板の例は
+  [`examples/ribbed_plate_quad_sizing.py`](../examples/ribbed_plate_quad_sizing.py)。
 - **オフセット梁**は剛体腕 $\mathbf{G}$ を含めて剛性・感度・応力回収を行う
   （`B=T G` を変換として扱い、$EA e^2$ の合成効果を感度に反映）。解析的感度は
   シェル・オフセットを含めても有限差分と一致する（`tests/test_optimize.py`）。

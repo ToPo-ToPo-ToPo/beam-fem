@@ -138,25 +138,35 @@ def mitc4_plate_stiffness(E, nu, t, x, y, ks: float = SHEAR_K):
 # 第2段階: 膜 Q4 ＋ ドリリングを足したフラットシェル要素
 # ======================================================================
 
+def _plane_stress_D(E, nu):
+    return (E / (1.0 - nu**2)) * np.array(
+        [[1.0, nu, 0.0], [nu, 1.0, 0.0], [0.0, 0.0, (1.0 - nu) / 2.0]]
+    )
+
+
+def _membrane_B(dN):
+    """膜 B 行列 (3x8)。DOF 並び [u,v]×4。dN は [dN/dx; dN/dy] (2x4)。"""
+    B = np.zeros((3, 8))
+    for i in range(4):
+        B[0, 2 * i] = dN[0, i]
+        B[1, 2 * i + 1] = dN[1, i]
+        B[2, 2 * i] = dN[1, i]
+        B[2, 2 * i + 1] = dN[0, i]
+    return B
+
+
 def q4_membrane_stiffness(E, nu, t, x, y):
     """Q4 平面応力（膜）要素剛性 (8x8)。DOF 並び [u,v]×4。面積も返す。"""
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
-    D = (E / (1.0 - nu**2)) * np.array(
-        [[1.0, nu, 0.0], [nu, 1.0, 0.0], [0.0, 0.0, (1.0 - nu) / 2.0]]
-    )
+    D = _plane_stress_D(E, nu)
     K = np.zeros((8, 8))
     area = 0.0
     for xi, eta, w in _GAUSS2:
         _, dNdxi, dNdeta = q4_shape(xi, eta)
         _, detJ, Jinv = q4_jacobian(x, y, dNdxi, dNdeta)
         dN = Jinv @ np.vstack([dNdxi, dNdeta])
-        B = np.zeros((3, 8))
-        for i in range(4):
-            B[0, 2 * i] = dN[0, i]
-            B[1, 2 * i + 1] = dN[1, i]
-            B[2, 2 * i] = dN[1, i]
-            B[2, 2 * i + 1] = dN[0, i]
+        B = _membrane_B(dN)
         K += t * (B.T @ D @ B) * detJ * w
         area += detJ * w
     return K, area
@@ -229,3 +239,25 @@ def quad_shell_stiffness_global(p1, p2, p3, p4, mat: Material, thickness: float)
     k_local = quad_shell_local_stiffness(mat.E, mat.nu, thickness, x, y)
     T = quad_shell_transformation(R)
     return T.T @ k_local @ T
+
+
+def quad_shell_stress_resultants(E, nu, t, x, y, d_local):
+    """要素中心 (ξ=η=0) での膜応力 [σx,σy,τxy] と曲げモーメント [Mx,My,Mxy] を返す。
+
+    d_local は局所座標系での 24 自由度（節点ごと [u,v,w,θx,θy,θz]）。いずれも
+    要素ローカル座標系の値。曲げモーメントは単位幅あたり（M = Db κ）。
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    _, dNdxi, dNdeta = q4_shape(0.0, 0.0)
+    _, _, Jinv = q4_jacobian(x, y, dNdxi, dNdeta)
+    dN = Jinv @ np.vstack([dNdxi, dNdeta])  # [dN/dx; dN/dy]
+
+    Dm = _plane_stress_D(E, nu)
+    sig = Dm @ (_membrane_B(dN) @ d_local[_Q_MEMBRANE])
+
+    Db = (E * t**3 / (12.0 * (1.0 - nu**2))) * np.array(
+        [[1.0, nu, 0.0], [nu, 1.0, 0.0], [0.0, 0.0, (1.0 - nu) / 2.0]]
+    )
+    mom = Db @ (_bending_B(dN[0], dN[1]) @ d_local[_Q_BENDING])
+    return sig, mom

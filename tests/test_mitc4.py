@@ -170,6 +170,36 @@ def test_quad_shell_ss_plate_convergence():
     assert abs(w16 - w_exact) <= abs(w8 - w_exact) + 1e-12
 
 
+def test_quad_shell_stress_recovery_membrane():
+    """四角形シェルの応力回収: 一様引張で主応力が (σ,0) の一軸状態になる。"""
+    from beamfem import recover_shell_forces
+
+    lx, ly, t = 2.0, 1.0, 0.02
+    nx, ny = 3, 2
+    m = Model()
+    ids = _quad_grid(m, nx, ny, lx, ly, t)
+    for (i, j), n in ids.items():
+        m.fix(n, [UZ, RX, RY, RZ])
+    for j in range(ny + 1):
+        m.fix(ids[(0, j)], [UX])
+    m.fix(ids[(0, 0)], [UY])
+    sigma = 50e6
+    F = sigma * ly * t
+    for j in range(ny + 1):
+        w = 0.5 if j in (0, ny) else 1.0
+        m.add_load(ids[(nx, j)], UX, F * w / ny)
+
+    res = solve_static(m)
+    sf = recover_shell_forces(m, res)
+    assert len(sf.quad_shells) == nx * ny
+    for s in sf.quad_shells:
+        sx, sy, sxy = s.get("sx"), s.get("sy"), s.get("sxy")
+        # 軸方向格子なのでローカル=グローバル → σx=σ, 他≈0
+        assert np.isclose(sx, sigma, rtol=1e-6)
+        assert abs(sy) < 1e-4 * sigma and abs(sxy) < 1e-4 * sigma
+        assert abs(s.get("Mx")) < 1e-6 * sigma * t**2   # 曲げモーメントは0
+
+
 def test_quad_shell_assembled_symmetric():
     """四角形シェルを含む全体剛性が対称。"""
     from beamfem.assembly import assemble_stiffness

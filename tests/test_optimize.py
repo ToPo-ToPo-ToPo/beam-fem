@@ -111,6 +111,50 @@ def test_sensitivity_ribbed_shell_offset_matches_fd():
         assert np.allclose(dfdx[:, i], (fp - fm) / (2 * h), rtol=1e-5, atol=1e-8)
 
 
+def test_sensitivity_quad_shell_offset_matches_fd():
+    """四角形シェル（MITC4）＋オフセットリブの連成でも解析的勾配が有限差分と一致。"""
+    t = 0.01
+    rib = Section.rectangle(b=0.006, h=0.030)
+    e = t / 2 + 0.030 / 2
+    vref = [0.0, 0.0, 1.0]
+
+    m = Model()
+    n00 = m.add_node(0.0, 0.0, 0.0)
+    n10 = m.add_node(1.0, 0.0, 0.0)
+    n11 = m.add_node(1.0, 1.0, 0.0)
+    n01 = m.add_node(0.0, 1.0, 0.0)
+    m.add_quad_shell(n00, n10, n11, n01, STEEL, t)   # 四角形シェル（板）
+    r0 = m.add_element(n00, n10, STEEL, rib, vref=vref, offset=[0, 0, -e])
+    r1 = m.add_element(n00, n11, STEEL, rib, vref=vref, offset=[0, 0, -e])
+    for nd in (n00, n01, n10, n11):
+        m.fix(nd, [RZ])
+    m.fix(n00)
+    m.fix(n01)
+    m.add_load(n11, UZ, -2000.0)
+    m.add_load(n10, UZ, -1200.0)
+
+    dvs = [
+        DesignVar(ScaledSection(rib), [r0], x0=1.1),
+        DesignVar(ScaledSection(rib), [r1], x0=0.9),
+    ]
+    prob = SizingProblem(m, dvs, sigma_allow=200e6,
+                         disp_limits=[DispLimit(n11, UZ, 0.05)])
+    x = np.array([1.1, 0.9])
+    f0, df0, f, dfdx = prob.evaluate(x)
+
+    # シェル剛性が加わり応力制約の感度が小さいので、丸め誤差に埋もれない
+    # ステップ幅を採る（h=1e-4 で全エントリが収束域で一致する）。
+    h = 1e-4
+    for i in range(prob.n_var):
+        xp, xm = x.copy(), x.copy()
+        xp[i] += h
+        xm[i] -= h
+        f0p, _, fp, _ = prob.evaluate(xp)
+        f0m, _, fm, _ = prob.evaluate(xm)
+        assert np.isclose(df0[i], (f0p - f0m) / (2 * h), rtol=1e-6)
+        assert np.allclose(dfdx[:, i], (fp - fm) / (2 * h), rtol=1e-5, atol=1e-8)
+
+
 def test_mma_stress_constrained_analytic():
     """静定片持ち・応力制約の解析的最適スケールに一致。"""
     base = Section.rectangle(b=0.05, h=0.10)

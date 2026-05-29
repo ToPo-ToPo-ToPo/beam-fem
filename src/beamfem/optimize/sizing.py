@@ -27,7 +27,12 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-from ..assembly import assemble_load_vector, element_dof_map, shell_dof_map
+from ..assembly import (
+    assemble_load_vector,
+    element_dof_map,
+    quad_shell_dof_map,
+    shell_dof_map,
+)
 from ..element3d import (
     local_stiffness,
     local_stiffness_derivs,
@@ -37,6 +42,7 @@ from ..element3d import (
 )
 from ..model import DOF_PER_NODE, Model
 from ..shell3d import shell_stiffness_global
+from ..shell_mitc4 import quad_shell_stiffness_global
 from .sections import ScaledSection
 
 
@@ -144,6 +150,16 @@ class SizingProblem:
             for s, sdofs in zip(m.shells, shell_dof_map(m)):
                 ks = shell_stiffness_global(
                     m.nodes[s.n1], m.nodes[s.n2], m.nodes[s.n3], s.mat, s.thickness
+                )
+                rr, cc = np.meshgrid(sdofs, sdofs, indexing="ij")
+                rows.append(rr.ravel())
+                cols.append(cc.ravel())
+                data.append(ks.ravel())
+        if m.quad_shells:
+            for s, sdofs in zip(m.quad_shells, quad_shell_dof_map(m)):
+                ks = quad_shell_stiffness_global(
+                    m.nodes[s.n1], m.nodes[s.n2], m.nodes[s.n3], m.nodes[s.n4],
+                    s.mat, s.thickness,
                 )
                 rr, cc = np.meshgrid(sdofs, sdofs, indexing="ij")
                 rows.append(rr.ravel())

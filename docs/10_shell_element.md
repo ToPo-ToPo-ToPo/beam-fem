@@ -137,6 +137,11 @@ $\mathbf{M}=\mathbf{D}_b\mathbf{B}_b\mathbf{q}_b$（単位幅あたり）を返�
 
 成分キー: 膜応力 `sx, sy, sxy` / 曲げモーメント `Mx, My, Mxy` / 曲げ縁端応力 `sbx, sby`。
 
+4 節点シェル（MITC4）の応力も同じ `recover_shell_forces` が回収し、結果は
+`ShellForceResults.quad_shells` に格納する（**要素中心 ξ=η=0** での膜応力と
+曲げモーメント、要素ローカル系）。`print_table(..., which="quad")` で四角形分のみ、
+`"tri"`/`"all"` で三角形のみ/両方を表示できる。
+
 ## 10.8 検証
 
 `tests/test_shell.py` で次を確認している。
@@ -185,7 +190,11 @@ $\mathbf{D}_s=k\,G\,t\,\mathbf{I}_2$（$k=5/6$）を 2×2 ガウスで積分す�
 - **薄板でロックしない**：$a/t=1000$ の単純支持板が Kirchhoff(Navier) 解へ収束
   （16×16 で誤差 <1%、粗メッシュでも過小評価しない）。
 - **厚板のせん断変形**：$a/t=10$ で Kirchhoff より $\sim$12% 大きいたわみへ収束。
-- **膜パッチ（Q4）・座標変換不変性**。
+- **膜パッチ（Q4）・座標変換不変性・応力回収**（`sf.quad_shells`）。
+
+四角形シェルは固定剛性として `SizingProblem` にも組み込まれ、四角形シェル板＋
+オフセットリブのサイジング最適化に使える（解析的感度は有限差分と一致、
+`examples/ribbed_plate_quad_sizing.py`）。
 
 参考: J.-L. Batoz, K.-J. Bathe, L.-W. Ho (1980), "A study of three-node
 triangular plate bending elements", *Int. J. Numer. Methods Eng.* 15.
