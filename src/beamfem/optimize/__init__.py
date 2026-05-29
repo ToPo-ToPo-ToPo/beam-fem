@@ -7,6 +7,14 @@ from .sections import ScaledSection
 from .sizing import SizingProblem, DesignVar, DispLimit
 from .driver import minimize_mass, OptResult
 from .mma import mmasub, subsolv
+from .topology import (
+    GroundStructure,
+    TopologyResult,
+    solve_min_volume,
+    generate_members,
+    grid_nodes,
+    equilibrium_matrix,
+)
 
 __all__ = [
     "ScaledSection",
@@ -17,4 +25,10 @@ __all__ = [
     "OptResult",
     "mmasub",
     "subsolv",
+    "GroundStructure",
+    "TopologyResult",
+    "solve_min_volume",
+    "generate_members",
+    "grid_nodes",
+    "equilibrium_matrix",
 ]

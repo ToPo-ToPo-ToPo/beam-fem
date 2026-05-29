@@ -314,6 +314,36 @@ def plot_diagram(
     return fig, ax
 
 
+def _draw_sized_members(
+    nodes, pairs, values, planar, max_width, min_width, cmap, label,
+    show_colorbar, ax, fig,
+):
+    """節点座標・部材ペア・値から、線幅/色を値に比例させて描く共通処理。"""
+    import matplotlib.cm as cm
+    from matplotlib import colormaps
+    from matplotlib.colors import Normalize
+
+    values = np.asarray(values, dtype=float)
+    vmin, vmax = float(values.min()), float(values.max())
+    span = vmax - vmin
+    norm = Normalize(vmin=vmin, vmax=vmax if span > 0 else vmin + 1.0)
+    colormap = colormaps[cmap]
+
+    for (i, j), v in zip(pairs, values):
+        pts = np.vstack([nodes[i], nodes[j]])
+        frac = (v - vmin) / span if span > 0 else 1.0
+        lw = min_width + frac * (max_width - min_width)
+        _plot_line(ax, pts, planar, color=colormap(norm(v)), lw=lw,
+                   solid_capstyle="round", zorder=2)
+
+    if show_colorbar:
+        sm = cm.ScalarMappable(norm=norm, cmap=colormap)
+        sm.set_array([])
+        cb = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
+        if label:
+            cb.set_label(label)
+
+
 def plot_member_sizes(
     model: Model,
     values,
@@ -331,10 +361,6 @@ def plot_member_sizes(
     values は要素数と同じ長さの配列（断面スケール・断面積・代表寸法など）。
     線幅は値に比例、色も値で着色する。2D/3D を自動判定する。
     """
-    import matplotlib.cm as cm
-    from matplotlib import colormaps
-    from matplotlib.colors import Normalize
-
     values = np.asarray(values, dtype=float)
     if len(values) != len(model.elements):
         raise ValueError("values の長さが要素数と一致しません")
@@ -345,30 +371,64 @@ def plot_member_sizes(
     else:
         fig = ax.figure
 
-    vmin, vmax = float(values.min()), float(values.max())
-    span = vmax - vmin
-    norm = Normalize(vmin=vmin, vmax=vmax if span > 0 else vmin + 1.0)
-    colormap = colormaps[cmap]
+    if show_undeformed:
+        for el in model.elements:
+            _plot_line(ax, np.vstack([model.nodes[el.n1], model.nodes[el.n2]]),
+                       planar, color="0.85", lw=0.8, zorder=1)
 
-    for el, v in zip(model.elements, values):
-        p1, p2 = model.nodes[el.n1], model.nodes[el.n2]
-        if show_undeformed:
-            _plot_line(ax, np.vstack([p1, p2]), planar, color="0.85", lw=0.8, zorder=1)
-        # 線幅: 値を [min_width, max_width] に正規化
-        frac = (v - vmin) / span if span > 0 else 1.0
-        lw = min_width + frac * (max_width - min_width)
-        color = colormap(norm(v))
-        _plot_line(ax, np.vstack([p1, p2]), planar, color=color, lw=lw,
-                   solid_capstyle="round", zorder=2)
-
-    if show_colorbar:
-        sm = cm.ScalarMappable(norm=norm, cmap=colormap)
-        sm.set_array([])
-        cb = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
-        if label:
-            cb.set_label(label)
-
+    pairs = [(el.n1, el.n2) for el in model.elements]
+    _draw_sized_members(model.nodes, pairs, values, planar, max_width, min_width,
+                        cmap, label, show_colorbar, ax, fig)
     ax.set_title(label or "Member sizes")
+    return fig, ax
+
+
+def plot_truss(
+    nodes,
+    members,
+    areas,
+    rel_tol: float = 1e-3,
+    show_all: bool = False,
+    max_width: float = 9.0,
+    min_width: float = 1.0,
+    cmap: str = "viridis",
+    label: str = "area",
+    show_colorbar: bool = True,
+    ax=None,
+):
+    """トラス（地盤構造）の最適配置を図示する。
+
+    トポロジー最適化の結果（断面積 areas）を、線幅・色を断面積に比例させて描く。
+    既定では断面積が最大の rel_tol 倍以下の部材（≈除去された部材）を描かない。
+    show_all=True で全候補部材を薄く重ねて表示する。
+    """
+    nodes = np.asarray(nodes, dtype=float)
+    areas = np.asarray(areas, dtype=float)
+    planar = nodes.shape[1] == 2
+    if ax is None:
+        fig, ax = _new_axes(planar)
+    else:
+        fig = ax.figure
+
+    amax = areas.max() if areas.size else 0.0
+    keep = areas > rel_tol * amax if amax > 0 else np.zeros(len(areas), dtype=bool)
+
+    if show_all:
+        for (i, j) in members:
+            _plot_line(ax, np.vstack([nodes[i], nodes[j]]), planar,
+                       color="0.88", lw=0.6, zorder=1)
+
+    pairs = [members[e] for e in range(len(members)) if keep[e]]
+    vals = areas[keep]
+    if len(pairs):
+        _draw_sized_members(nodes, pairs, vals, planar, max_width, min_width,
+                            cmap, label, show_colorbar, ax, fig)
+    # 節点
+    if planar:
+        ax.scatter(nodes[:, 0], nodes[:, 1], s=8, color="k", zorder=3)
+    else:
+        ax.scatter(nodes[:, 0], nodes[:, 1], nodes[:, 2], s=8, color="k", zorder=3)
+    ax.set_title(f"Optimal layout ({len(pairs)}/{len(members)} members)")
     return fig, ax
 
 

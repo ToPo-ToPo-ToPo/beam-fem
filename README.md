@@ -16,6 +16,7 @@
 - **要素内力・応力の回収**：軸力 N・せん断 Vy/Vz・ねじり T・曲げ My/Mz、および軸/曲げ/合成応力。表・CSV 出力は**表示項目を指定可能**（常に全項目を出さない）。断面力図も描画
 - **多様な断面形状**：矩形・円・I 形（H 形鋼）・箱型（角形鋼管）・パイプ（中空円）、および完全自由な断面（A,I,J 直接指定）
 - **断面サイジング最適化**：応力・たわみ制約下の質量最小化。**解析的感度（直接法）＋ MMA**。解析解・SLSQP と一致を検証済み。最適化結果の構造形態（部材サイズ分布）も図示できる
+- **トポロジー／部材配置最適化**：**Ground Structure 法（トラスLP）**。応力制約下の最小体積を線形計画で**大域最適**に解く。複数荷重ケース・引張/圧縮別許容応力・2D/3D 対応。最適配置を図示
 - **出力は `workspace/` フォルダへ**：図・CSV は相対パス指定で `workspace/` に自動保存（フォルダも自動生成、`set_workspace` で変更可）
 
 ## セットアップ
@@ -74,6 +75,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 - [`examples/beam_forces.py`](examples/beam_forces.py) — 単純梁の内力・応力と項目指定出力
 - [`examples/spider_web_3d.py`](examples/spider_web_3d.py) — 円形「蜘蛛の巣」フレームに面分布荷重（面外グリラージュ／3D 曲げ・ねじり）
 - [`examples/sizing_optimization.py`](examples/sizing_optimization.py) — 先細り片持ち梁の質量最小化（サイジング最適化）
+- [`examples/topology_ground_structure.py`](examples/topology_ground_structure.py) — 片持ちトラスの部材配置最適化（Ground Structure 法）
 
 ### 断面サイジング最適化
 
@@ -93,6 +95,23 @@ print(res.x, res.mass, res.sections)
 # 最適化結果の構造形態を図示（部材の線幅・色＝断面サイズ）
 viz.plot_member_sizes(model, prob.element_values(res.x, kind="area"),
                       label="cross-section area")
+```
+
+### トポロジー／部材配置最適化（Ground Structure 法）
+
+```python
+from beamfem.optimize import GroundStructure, generate_members, grid_nodes, solve_min_volume
+from beamfem import viz
+
+nodes = grid_nodes(nx=6, ny=5, lx=5.0, ly=4.0)   # 格子節点
+members = generate_members(nodes)                 # 候補部材（共線重複は除去）
+gs = GroundStructure(
+    nodes, members,
+    supports={iy * 6: [0, 1] for iy in range(5)},  # 左端列を固定
+    load_cases=[{(2 * 6 + 5, 1): -50e3}],          # 右端中央に下向き荷重
+)
+res = solve_min_volume(gs, sigma_t=200e6)          # 最小体積トラス（LP・大域最適）
+viz.plot_truss(nodes, members, res.areas, show_all=True)   # 最適配置を図示
 ```
 
 ## 断面形状
@@ -147,6 +166,7 @@ examples/       使用例
 - [x] 変形図の描画（2D/3D）
 - [x] 要素内力・応力の回収（断面力図・項目指定出力）
 - [x] 断面サイジング最適化（解析的感度 + MMA、応力・たわみ制約下の質量最小化）
+- [x] トポロジー／部材配置最適化（Ground Structure 法・トラスLP）
 - [ ] 固有値（モーダル）解析
 - [ ] 断面サイジング最適化（解析的感度 + MMA）
 - [ ] トポロジー / 部材配置最適化（Ground Structure 法）

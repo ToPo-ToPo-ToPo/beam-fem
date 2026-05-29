@@ -89,6 +89,16 @@ def test_plot_member_sizes():
         viz.plot_member_sizes(m, np.array([1.0, 2.0]))
 
 
+def test_plot_truss():
+    import numpy as np
+
+    nodes = np.array([[0.0, 0.0], [-1.0, 1.0], [-1.0, -1.0]])
+    members = [(0, 1), (0, 2)]
+    areas = np.array([1e-4, 5e-7])  # 2本目はほぼゼロ
+    fig, ax = viz.plot_truss(nodes, members, areas, rel_tol=1e-3, show_all=True)
+    matplotlib.pyplot.close(fig)
+
+
 def test_deformed_curve_endpoints_match_nodes():
     """補間曲線の両端が節点変位（scale倍）と一致すること。"""
     m = _portal_2d()
