@@ -1,0 +1,50 @@
+{
+  "bits": [
+    1,
+    1
+  ],
+  "claim": "Smoke test only; no quantum advantage claim.",
+  "created_at_utc": "2026-09-02T03:44:55.128646+00:00",
+  "environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.9",
+    "qiskit": "2.5.2",
+    "qiskit_aer": "0.17.2",
+    "qiskit_optimization": "0.7.0"
+  },
+  "evidence_schema_version": "1.0",
+  "execution": "local_noisy_simulator",
+  "hardware_execution_performed": false,
+  "hardware_reason": "No provider credentials or paid hardware authorization supplied.",
+  "metadata": {
+    "classical_optimizer_time": 0.023537158966064453,
+    "cost_function_evaluations": 10,
+    "energy_gap_to_exact": 0.0,
+    "exact_reference_energy": -1.25,
+    "execution_label": "Aer SamplerV2 noisy smoke",
+    "fval": -1.25,
+    "logical_circuit_depth": 5,
+    "logical_gate_counts": {
+      "barrier": 1,
+      "h": 2,
+      "measure": 2,
+      "rx": 2,
+      "rz": 2,
+      "rzz": 1
+    },
+    "logical_qubits": 2,
+    "logical_two_qubit_gates": 2,
+    "maxiter": 10,
+    "noise_model": "depolarizing p1=0.002 p2=0.01",
+    "qaoa_wall_time": 0.028211333003127947,
+    "qiskit_status": "OptimizationResultStatus.SUCCESS",
+    "quantum_execution_time": null,
+    "reps": 1,
+    "samples": 4,
+    "seed": 11,
+    "selected_probability": 0.80078125,
+    "shots": 256
+  },
+  "passed": true,
+  "qubo_energy": -1.25
+}

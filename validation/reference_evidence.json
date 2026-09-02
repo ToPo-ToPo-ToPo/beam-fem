@@ -1,0 +1,139 @@
+{
+  "audit": {
+    "beamfem_version": "1.0.0rc1",
+    "created_at_utc": "2026-09-02T03:44:18.899516+00:00",
+    "git_commit": "e1ed384ad256bf62e3a215728e1ded8727d4d4cf",
+    "git_dirty": false,
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python_version": "3.13.9",
+    "seed": null,
+    "solver": "closed-form-reference-vv",
+    "solver_settings": {
+      "fixture_count": 3,
+      "units": "SI"
+    },
+    "warnings": []
+  },
+  "cases": [
+    {
+      "actual": {
+        "axial_forces": [
+          8000.0,
+          7999.999999999998
+        ],
+        "displacement": [
+          0.000186,
+          0.0,
+          0.0
+        ]
+      },
+      "case_id": "mixed-frame-truss-series-v1",
+      "description": "One frame member and one axial truss member in series",
+      "expected": {
+        "axial_forces": [
+          8000.0,
+          8000.0
+        ],
+        "displacement": [
+          0.000186,
+          0.0,
+          0.0
+        ]
+      },
+      "expected_formula": "ux=P*Lb/(E*Ab)+P*Lt/(E*At)",
+      "metrics": {
+        "axial_force_relative_error": 1.6077746776921856e-16,
+        "displacement_relative_error": 0.0,
+        "equilibrium_residual": 0.0,
+        "rotation_invariance_relative_error": null
+      },
+      "passed": true
+    },
+    {
+      "actual": {
+        "axial_forces": [
+          0.0,
+          -18749.999999999996,
+          -18749.999999999996
+        ],
+        "displacement": [
+          0.0,
+          -0.0007324218749999998,
+          0.0
+        ]
+      },
+      "case_id": "triangle-2d-handcalc-v1",
+      "description": "Symmetric three-bar planar truss with a vertical apex load",
+      "expected": {
+        "axial_forces": [
+          0.0,
+          -18750.0,
+          -18750.0
+        ],
+        "displacement": [
+          0.0,
+          -0.000732421875,
+          0.0
+        ]
+      },
+      "expected_formula": "uy=-P*L/(2*E*A*sin(theta)^2); Ndiag=-P/(2*sin(theta))",
+      "metrics": {
+        "axial_force_relative_error": 1.9402553637822471e-16,
+        "displacement_relative_error": 2.9605947323337506e-16,
+        "equilibrium_residual": 1.2126596023639044e-16,
+        "rotation_invariance_relative_error": 4.681111291435603e-16
+      },
+      "passed": true
+    },
+    {
+      "actual": {
+        "axial_forces": [
+          -8873.871759271706,
+          -8873.87175927171,
+          -8873.87175927171
+        ],
+        "displacement": [
+          -3.137222932720625e-19,
+          0.0,
+          -0.0003412003691439972
+        ]
+      },
+      "case_id": "tripod-3d-handcalc-v1",
+      "description": "Three identical bars equally spaced around a vertically loaded apex",
+      "expected": {
+        "axial_forces": [
+          -8873.87175927171,
+          -8873.87175927171,
+          -8873.87175927171
+        ],
+        "displacement": [
+          0.0,
+          0.0,
+          -0.0003412003691439971
+        ]
+      },
+      "expected_formula": "uz=-P*L^3/(3*E*A*h^2); N=-P*L/(3*h)",
+      "metrics": {
+        "axial_force_relative_error": 2.3669353136481837e-16,
+        "displacement_relative_error": 9.728261401140973e-16,
+        "equilibrium_residual": 1.5158245029548803e-16,
+        "rotation_invariance_relative_error": null
+      },
+      "passed": true
+    }
+  ],
+  "evidence_schema_version": "1.0",
+  "fixture_sha256": {
+    "mixed_frame_truss.json": "07fdb0ff8028cbdabee46096d4979ff61fdcb1e9e3ea6dceed42d6b18bbbb1f3",
+    "triangle_2d.json": "716ea491a8006441d89a11b526352954250e207482d11f9c51fe5a610f9d6fc7",
+    "tripod_3d.json": "fa627fb374ef684a8bea95bcbbec338395e0d27dc52e684db39eeb66054d0e38"
+  },
+  "method": "closed_form_reference_cases",
+  "passed": true,
+  "tolerances": {
+    "equilibrium_residual_max": 1e-08,
+    "reference_relative_error_max": 0.005,
+    "rotation_invariance_relative_error_max": 1e-10
+  },
+  "units": "SI"
+}
