@@ -41,6 +41,7 @@ def collect_release_decision(root: Path = ROOT) -> dict:
         "legacy_regression": validation / "legacy_regression_evidence.json",
         "quantum_smoke": validation / "quantum_evidence.json",
         "security": validation / "security_evidence.json",
+        "dependency_inventory": validation / "dependency_evidence.json",
     }
     missing = [name for name, path in evidence_paths.items() if not path.is_file()]
     if missing:
@@ -68,6 +69,7 @@ def collect_release_decision(root: Path = ROOT) -> dict:
         ),
         "quantum_noisy_smoke": bool(evidence["quantum_smoke"].get("passed")),
         "dependency_security": bool(evidence["security"].get("passed")),
+        "dependency_inventory": bool(evidence["dependency_inventory"].get("passed")),
         "dependency_lock_present": (root / "requirements-release.lock").is_file(),
     }
     independent = _load(validation / "independent_review_template.json")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import platform
@@ -12,6 +13,15 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _git_commit() -> str | None:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
 
 
 def summarize_pip_audit(payload: dict | list) -> tuple[int, int]:
@@ -36,8 +46,12 @@ def collect_evidence(lock: Path) -> dict:
     return {
         "evidence_schema_version": "1.0",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "environment": {"platform": platform.platform(), "python": platform.python_version()},
+        "environment": {
+            "platform": platform.platform(), "python": platform.python_version(),
+            "git_commit": _git_commit(),
+        },
         "lock_file": str(lock.relative_to(ROOT)),
+        "lock_sha256": hashlib.sha256(lock.read_bytes()).hexdigest(),
         "command": command[2:],
         "dependency_count": dependencies,
         "vulnerability_count": vulnerabilities,
