@@ -6,37 +6,40 @@
     "processor": "arm",
     "python": "3.13.9",
     "implementation": "CPython",
-    "git_commit": "e1ed384ad256bf62e3a215728e1ded8727d4d4cf",
-    "git_dirty": false
+    "git_commit": "f747c6684dcc12d79d6b57b53610d644f63cfb93",
+    "git_dirty": true
+  },
+  "seeds": {
+    "sequential_qubo": 1
   },
   "factorization_reuse": {
     "repeats": 9,
     "load_cases_per_repeat": 16,
     "baseline_seconds": [
-      0.022680958005366847,
-      0.022740000014891848,
-      0.022794124990468845,
-      0.022809999994933605,
-      0.022542000020621344,
-      0.022719583997968584,
-      0.022759999992558733,
-      0.02310558399767615,
-      0.02275595799437724
+      0.02371370801120065,
+      0.023390457994537428,
+      0.023785833996953443,
+      0.023869500000728294,
+      0.023500416980823502,
+      0.02375737499096431,
+      0.023532416991656646,
+      0.023480417003156617,
+      0.022939334012335166
     ],
     "reuse_seconds": [
-      0.0016208750021178275,
-      0.0015982499753590673,
-      0.001604624994797632,
-      0.001602665986865759,
-      0.0016001249896362424,
-      0.0016032500134315342,
-      0.001628792000701651,
-      0.0016238339885603637,
-      0.0016204999992623925
+      0.001725749985780567,
+      0.0016456249868497252,
+      0.0016786659834906459,
+      0.0016607909929007292,
+      0.0018482080195099115,
+      0.0016479589976370335,
+      0.0016883749922271818,
+      0.0016535829927306622,
+      0.0017042499966919422
     ],
-    "baseline_median_seconds": 0.02275595799437724,
-    "reuse_median_seconds": 0.001604624994797632,
-    "speedup": 14.18148045066886,
+    "baseline_median_seconds": 0.023532416991656646,
+    "reuse_median_seconds": 0.0016786659834906459,
+    "speedup": 14.018522578698443,
     "target_speedup": 3.0,
     "threshold_met": true,
     "comparison_scope": "assembly_and_factorization_per_load_vs_one_factorization_per_design"
@@ -45,26 +48,31 @@
     "repeats": 5,
     "workers": 4,
     "sequential_seconds": [
-      0.136157834000187,
-      0.1317077919957228,
-      0.1304297499882523,
-      0.1309526669792831,
-      0.14060366700869054
+      1.3058512499846984,
+      1.3060125000192784,
+      1.3312639159848914,
+      1.323723624984268,
+      1.321530791989062
     ],
     "parallel_seconds": [
-      0.2226065830036532,
-      0.21957674997975118,
-      0.2223109159967862,
-      0.21821770898532122,
-      0.21889070799807087
+      0.3500449589919299,
+      0.34955712500959635,
+      0.3506341250031255,
+      0.3530702910211403,
+      0.35028545901877806
     ],
-    "sequential_median_seconds": 0.1317077919957228,
-    "parallel_median_seconds": 0.21957674997975118,
-    "speedup": 0.5998257648310605,
+    "sequential_median_seconds": 1.321530791989062,
+    "parallel_median_seconds": 0.35028545901877806,
+    "speedup": 3.7727252386980115,
     "target_speedup": 3.0,
-    "threshold_met": false,
-    "release_gate_passed": false,
-    "note": "Observed local FEM candidate-build wall time; unmet speedup remains a failed gate."
+    "threshold_met": true,
+    "release_gate_passed": true,
+    "results_bitwise_equal": true,
+    "case": "medium",
+    "max_candidates": 12,
+    "execution_model": "persistent isolated worker processes",
+    "timing_scope": "steady-state local-QUBO build after one warm-up iteration",
+    "note": "Observed medium-case FEM candidate-build wall time; pass requires bitwise-identical QUBOs."
   },
   "scale_cases": {
     "small": {
@@ -76,19 +84,22 @@
       "local_exact_qubo": {
         "variables": 8,
         "fem_evaluations": 79,
-        "build_seconds": 0.1313504580175504,
-        "solve_seconds": 0.0009226670081261545,
+        "build_seconds": 0.1429294160043355,
+        "solve_seconds": 0.0009542079933453351,
         "energy": 0.0,
         "fem_objective": 198.80614547492618,
         "fem_feasible": true
       },
       "equilibrium_capacity_milp": {
-        "runtime_seconds": 0.19029520798358135,
+        "runtime_seconds": 1.3086007500241976,
         "mip_gap": 0.0,
-        "linear_objective": 31.75422909498523,
-        "fem_objective": 31.754229094985238,
-        "fem_feasible": false,
-        "scope": "truss_equilibrium_and_section_capacity"
+        "linear_objective": 89.3222012216322,
+        "fem_objective": 96.56603636873155,
+        "fem_feasible": true,
+        "scope": "truss_equilibrium_and_section_capacity",
+        "raw_milp_fem_feasible": false,
+        "fem_repair_performed": true,
+        "fem_repair_backend": "greedy"
       }
     },
     "medium": {
@@ -98,13 +109,21 @@
       "full_exact_limit_triggered": true,
       "full_exact_message": "combination count 444089209850062616169452667236328125 exceeds limit 200000",
       "limited_local_run": {
-        "runtime_seconds": 0.989136124990182,
+        "runtime_seconds": 1.0974299160006922,
         "fem_evaluations": 213,
-        "fem_objective": 616.207794003933,
-        "fem_feasible": false,
+        "fem_objective": 375.48128820222786,
+        "fem_feasible": true,
         "checkpoint_written": true,
         "checkpoint_resumed": true,
-        "accepted_as_solution": false
+        "accepted_as_solution": true,
+        "configured_limits": {
+          "max_evaluations": 2000,
+          "max_iterations": 1,
+          "time_limit_seconds": 60.0,
+          "memory_limit_mb": 4096.0
+        },
+        "observed_peak_memory_mb": 228.078125,
+        "limits_respected": true
       }
     },
     "large": {
@@ -114,31 +133,39 @@
       "full_exact_limit_triggered": true,
       "full_exact_message": "combination count 311150763893057085357203202689006212029512608436058356655055830739484941701769172059197241156285680847848329477756124106235802173614501953125 exceeds limit 200000",
       "limited_local_run": {
-        "runtime_seconds": 14.736959375004517,
+        "runtime_seconds": 15.797916333016474,
         "fem_evaluations": 813,
-        "fem_objective": 2515.7286063323477,
-        "fem_feasible": false,
+        "fem_objective": 1213.774473827442,
+        "fem_feasible": true,
         "checkpoint_written": true,
         "checkpoint_resumed": true,
-        "accepted_as_solution": false
+        "accepted_as_solution": true,
+        "configured_limits": {
+          "max_evaluations": 2000,
+          "max_iterations": 1,
+          "time_limit_seconds": 60.0,
+          "memory_limit_mb": 4096.0
+        },
+        "observed_peak_memory_mb": 1179.4375,
+        "limits_respected": true
       }
     }
   },
   "required_performance_gates": {
     "factorization_3x_speedup": true,
+    "parallel_3x_speedup": true,
     "medium_exact_limit_triggered": true,
     "medium_checkpoint_resume": true,
     "large_exact_limit_triggered": true,
     "large_checkpoint_resume": true,
+    "medium_limits_respected": true,
+    "large_limits_respected": true,
     "all_required_performance_gates_passed": true
   },
-  "known_performance_limitations": {
-    "parallel_3x_speedup": false
-  },
   "solution_quality_gates": {
-    "small_milp_fem_feasible": false,
-    "medium_candidate_feasible": false,
-    "large_candidate_feasible": false,
-    "all_solution_quality_gates_passed": false
+    "small_milp_fem_feasible": true,
+    "medium_candidate_feasible": true,
+    "large_candidate_feasible": true,
+    "all_solution_quality_gates_passed": true
   }
 }

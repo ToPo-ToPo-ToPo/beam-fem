@@ -1,0 +1,342 @@
+{
+  "evidence_schema_version": "1.0",
+  "environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.9",
+    "git_commit": "f747c6684dcc12d79d6b57b53610d644f63cfb93"
+  },
+  "problem": "small quantum-truss benchmark",
+  "common_authoritative_evaluator": "classical beamfem FEM",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "backends": {
+    "sa": {
+      "runs": [
+        {
+          "seed": 0,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.1824603340064641,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 1,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.18123758299043402,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 2,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.18663924999418668,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 3,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.18123683400335722,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 4,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.17124675001832657,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 5,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.17180545898736455,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 6,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.19714033300988376,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 7,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.17161945800762624,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 8,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.17240641699754633,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 9,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.1698072500003036,
+          "message": "maximum iterations reached"
+        }
+      ],
+      "seed_count": 10,
+      "successful_run_count": 10,
+      "feasible_run_count": 10,
+      "feasibility_rate": 1.0,
+      "objective": {
+        "best": 168.64743031661746,
+        "median": 168.64743031661746,
+        "worst": 168.64743031661746
+      },
+      "mass": {
+        "best": 168.64743031661746,
+        "median": 168.64743031661746,
+        "worst": 168.64743031661746
+      },
+      "evaluation_budget": {
+        "best": 68,
+        "median": 68.0,
+        "worst": 68
+      },
+      "acceptance": {
+        "minimum_seeds": 10,
+        "minimum_feasibility_rate": 0.9,
+        "enough_seeds": true,
+        "feasibility_rate_met": true,
+        "all_runs_completed": true,
+        "passed": true
+      },
+      "settings": {
+        "iterations": 1,
+        "candidates": 2,
+        "sa_sweeps": 200,
+        "sa_restarts": 4,
+        "max_evaluations": 1000
+      }
+    },
+    "qaoa": {
+      "runs": [
+        {
+          "seed": 0,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.5901126670069061,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 1,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.22071170798153616,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 2,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.19034300002385862,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 3,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.19141320799826644,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 4,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.19095554199884646,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 5,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.1920824580010958,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 6,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.1916110840102192,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 7,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.18947808298980817,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 8,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.1991323749825824,
+          "message": "maximum iterations reached"
+        },
+        {
+          "seed": 9,
+          "status": "stopped",
+          "qubo_energy": 168.6474303160794,
+          "fem_score": 168.64743031661746,
+          "mass": 168.64743031661746,
+          "feasible": true,
+          "governing_constraint": "euler_buckling_1",
+          "evaluations": 68,
+          "runtime_seconds": 0.20693200000096112,
+          "message": "maximum iterations reached"
+        }
+      ],
+      "seed_count": 10,
+      "successful_run_count": 10,
+      "feasible_run_count": 10,
+      "feasibility_rate": 1.0,
+      "objective": {
+        "best": 168.64743031661746,
+        "median": 168.64743031661746,
+        "worst": 168.64743031661746
+      },
+      "mass": {
+        "best": 168.64743031661746,
+        "median": 168.64743031661746,
+        "worst": 168.64743031661746
+      },
+      "evaluation_budget": {
+        "best": 68,
+        "median": 68.0,
+        "worst": 68
+      },
+      "acceptance": {
+        "minimum_seeds": 10,
+        "minimum_feasibility_rate": 0.9,
+        "enough_seeds": true,
+        "feasibility_rate_met": true,
+        "all_runs_completed": true,
+        "passed": true
+      },
+      "settings": {
+        "iterations": 1,
+        "candidates": 2,
+        "qaoa_reps": 1,
+        "qaoa_maxiter": 10,
+        "shots": 256,
+        "max_evaluations": 1000
+      }
+    }
+  },
+  "passed": true
+}

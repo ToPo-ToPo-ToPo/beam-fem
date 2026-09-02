@@ -1,0 +1,77 @@
+{
+  "evidence_schema_version": "1.0",
+  "created_at_utc": "2026-09-02T04:15:57.946304+00:00",
+  "environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.9",
+    "git_commit": "f747c6684dcc12d79d6b57b53610d644f63cfb93"
+  },
+  "automated_checks": {
+    "reference_cases": true,
+    "exact_milp_micro": true,
+    "performance": true,
+    "solution_quality": true,
+    "stochastic_ten_seed": true,
+    "legacy_159_91_88_regression": true,
+    "quantum_noisy_smoke": true,
+    "dependency_security": true,
+    "dependency_inventory": true,
+    "dependency_lock_present": true
+  },
+  "external_checks": {
+    "independent_engineer_review": false,
+    "minimum_two_approved_pilots": false
+  },
+  "approved_pilot_files": [],
+  "artifacts": {
+    "reference": {
+      "path": "validation/reference_evidence.json",
+      "sha256": "dffb64338d5788fc8e38c1afeb41177a419689e5940307d1dbb16d93ceabd6f7",
+      "size_bytes": 3840
+    },
+    "exact_milp": {
+      "path": "validation/exact_milp_micro_evidence.json",
+      "sha256": "4e4a1c137efd29afebefff7e45a41776479805f83760ac4670be69524d4fcc9c",
+      "size_bytes": 1279
+    },
+    "performance": {
+      "path": "validation/performance_evidence.json",
+      "sha256": "b2c9c3b1d5f8847c773bed92ea10a338164d90a53a9132758da9c7945fe38d94",
+      "size_bytes": 5646
+    },
+    "stochastic": {
+      "path": "validation/stochastic_evidence.json",
+      "sha256": "571ab1aad34a553447205dbcc5a3de8efdce84ec45ae265137bbdfd5e955a1fe",
+      "size_bytes": 10495
+    },
+    "legacy_regression": {
+      "path": "validation/legacy_regression_evidence.json",
+      "sha256": "84b67e681b220cdca4240c63345804e92f9c81ff2828bc18b3828f27985b9506",
+      "size_bytes": 1302
+    },
+    "quantum_smoke": {
+      "path": "validation/quantum_evidence.json",
+      "sha256": "7ed8963f4fbb93d103d6b0b7ad5915c842848bb7e6bad9ce86908f03650e7d15",
+      "size_bytes": 1525
+    },
+    "security": {
+      "path": "validation/security_evidence.json",
+      "sha256": "0d9772c543f1486f54b1c72e150378b5cb6ca9644a3bd330264aee1cc13510be",
+      "size_bytes": 3164
+    },
+    "dependency_inventory": {
+      "path": "validation/dependency_evidence.json",
+      "sha256": "8cf3d03faed5d3231eaf77bb82f34b4dec5f01b357d4adf782d33ee8e866ddf7",
+      "size_bytes": 143185
+    },
+    "dependency_lock": {
+      "path": "requirements-release.lock",
+      "sha256": "3de64e1e97931f9df49f5f25963cf801d56ab58ecf491fd36e0d48d09eba2240",
+      "size_bytes": 665
+    }
+  },
+  "automated_release_candidate_passed": true,
+  "external_approvals_passed": false,
+  "eligible_for_v1_0": false,
+  "release_stage": "release-candidate"
+}

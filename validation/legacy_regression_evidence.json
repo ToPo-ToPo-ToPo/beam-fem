@@ -1,0 +1,47 @@
+{
+  "evidence_schema_version": "1.0",
+  "environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.9",
+    "git_commit": "f747c6684dcc12d79d6b57b53610d644f63cfb93"
+  },
+  "source_sha256": {
+    "experiments/quantum_truss_qaoa/legacy/hybrid_qubo_truss_sa.py": "31bd596fbafcddb6633a960d0081aa28cd4f026fc9e5648452b4b0f88034870c",
+    "experiments/quantum_truss_qaoa/hybrid_qubo_truss_compare.py": "645a2e8fc01ecf215b83a8cbfab54931ca1683a176f0b0ce346bc7e8c6a2f02b"
+  },
+  "expected": {
+    "dense_mass_kg": 159.04491637994093,
+    "greedy_mass_kg": 91.71915091622414,
+    "local_qubo_mass_kg": 88.70327940039327
+  },
+  "observed": {
+    "dense_mass_kg": 159.04491637994093,
+    "greedy_mass_kg": 91.71915091622414,
+    "local_qubo_mass_kg": 88.70327940039327
+  },
+  "tolerance_kg": 1e-08,
+  "feasibility": {
+    "dense": true,
+    "greedy": true,
+    "local_qubo": true
+  },
+  "sa": {
+    "seed": 123,
+    "reads": 32,
+    "sweeps": 1000,
+    "qubo_energy": 0.0011004936240691654,
+    "selected_moves": [
+      "M12:NONE->S",
+      "M13:M->NONE"
+    ],
+    "fem_score": 88.70327940039327,
+    "mass_kg": 88.70327940039327,
+    "feasible": true
+  },
+  "checks": {
+    "dense_mass_kg": true,
+    "greedy_mass_kg": true,
+    "local_qubo_mass_kg": true
+  },
+  "passed": true
+}

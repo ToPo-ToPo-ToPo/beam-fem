@@ -4,12 +4,13 @@
     "machine": "arm64",
     "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
     "python": "3.13.9",
-    "git_commit": "e1ed384ad256bf62e3a215728e1ded8727d4d4cf"
+    "git_commit": "f747c6684dcc12d79d6b57b53610d644f63cfb93"
   },
   "problem": {
     "members": 2,
     "states_per_member": 3,
     "combinations": 9,
+    "input_sha256": "f86dfda83f4ea3b3f2400a988d5911c6e430cea3296a5648be205752f76447ab",
     "section_index_map": {
       "0": "OFF",
       "1": "S",
@@ -32,7 +33,7 @@
     "objective_mass_kg": 3.14,
     "feasible": true,
     "evaluations": 9,
-    "runtime_seconds": 0.0031798339914530516
+    "runtime_seconds": 0.003595000016503036
   },
   "milp": {
     "design": [
@@ -43,7 +44,7 @@
     "linear_objective_mass_kg": 3.14,
     "feasible_after_common_fem": true,
     "mip_gap": 0.0,
-    "runtime_seconds": 0.0006814999796915799
+    "runtime_seconds": 0.0007345000049099326
   },
   "checks": {
     "same_design": true,
