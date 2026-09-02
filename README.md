@@ -33,6 +33,32 @@ python3 -m venv .venv
 .venv/bin/python -m pytest        # 検証テスト
 ```
 
+量子最適化を含める場合は、Qiskitの状態ベクトル版なら `.[viz,dev,qaoa]`、
+Aerを使う場合は `.[viz,dev,qaoa-aer]` を指定する。
+
+## 実用向け離散構造最適化
+
+規格断面の選択と部材の有無を、同じFEM評価器に対して Exact、Greedy、SA、
+Qiskit QAOAで比較できる。入力はSI単位のバージョン付きJSON/YAMLで、複数荷重
+ケース・荷重組合せ・自重、応力・変位・Euler座屈・構成上の制約に対応する。
+
+```bash
+python benchmarks/quantum_truss/generate_cases.py small workspace/small.json
+beamfem-optimize workspace/small.json --output workspace/greedy.json --backend greedy
+beamfem-optimize workspace/small.json --output workspace/sa.json --backend sa --seed 42
+beamfem-optimize workspace/small.json --output workspace/qaoa.json --backend qaoa \
+  --qaoa-reps 1 --qaoa-maxiter 100 --shots 1024
+```
+
+結果JSONには目的値、質量、実行可能性、支配制約、QUBO energy、FEMで再評価した
+スコア、乱数seed、ソルバー設定、Git状態を保存する。QAOAのSamplerと transpilation
+pass managerはPython APIから差し替えられ、Qiskitがない環境では明示したfallbackを
+利用できる。入力仕様と監査形式は [`docs/13_input_audit_benchmarks.md`](docs/13_input_audit_benchmarks.md)、
+設計と制約事項は [`docs/12_discrete_quantum_optimization.md`](docs/12_discrete_quantum_optimization.md) を参照。
+
+> 現行の共通アダプタは候補部材をTimoshenko梁・骨組要素として評価する。純粋な
+> ピン接合軸力トラスへの自動変換ではないため、接合モデルは用途に合わせて確認する。
+
 ## 使い方（最小例：片持ち梁）
 
 ```python

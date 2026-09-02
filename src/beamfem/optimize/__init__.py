@@ -20,6 +20,25 @@ from .discrete import (
     solve_discrete_exhaustive,
     solve_discrete_greedy,
 )
+from .catalogs import SectionOption, SectionCatalog
+from .problem import DesignState, LoadCase, LoadCombination, DiscreteStructuralProblem
+from .objectives import MassObjective, WeightedImpactObjective
+from .evaluation import StructuralEvaluator, EvaluationResult, CombinationAnalysis
+from .constraints import (
+    ConstraintRecord,
+    RequiredMembers,
+    ForbiddenMembers,
+    SameSectionGroup,
+    MaxSectionTypes,
+    ActiveMemberCount,
+    SymmetryPairs,
+    Connectivity,
+    MemberLengthRange,
+    DisplacementLimit as DiscreteDisplacementLimit,
+    RelativeDisplacementLimit,
+    StressLimit,
+    EulerBucklingLimit,
+)
 
 __all__ = [
     "ScaledSection",
@@ -39,4 +58,28 @@ __all__ = [
     "DiscreteResult",
     "solve_discrete_exhaustive",
     "solve_discrete_greedy",
+    "SectionOption",
+    "SectionCatalog",
+    "DesignState",
+    "LoadCase",
+    "LoadCombination",
+    "DiscreteStructuralProblem",
+    "MassObjective",
+    "WeightedImpactObjective",
+    "StructuralEvaluator",
+    "EvaluationResult",
+    "CombinationAnalysis",
+    "ConstraintRecord",
+    "RequiredMembers",
+    "ForbiddenMembers",
+    "SameSectionGroup",
+    "MaxSectionTypes",
+    "ActiveMemberCount",
+    "SymmetryPairs",
+    "Connectivity",
+    "MemberLengthRange",
+    "DiscreteDisplacementLimit",
+    "RelativeDisplacementLimit",
+    "StressLimit",
+    "EulerBucklingLimit",
 ]
