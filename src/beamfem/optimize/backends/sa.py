@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from math import exp
+from math import exp, isfinite
 from time import perf_counter
 from typing import Any, Callable, Sequence
 
@@ -37,7 +37,13 @@ class SimulatedAnnealingBackend:
                  sweeps: int = 2_000, restarts: int = 8, seed: int = 0,
                  initial_temperature: float | None = None,
                  final_temperature: float = 1e-3):
-        if sweeps < 1 or restarts < 1 or final_temperature <= 0:
+        if (
+            sweeps < 1 or restarts < 1 or not isfinite(float(final_temperature))
+            or final_temperature <= 0
+            or (initial_temperature is not None and (
+                not isfinite(float(initial_temperature)) or initial_temperature <= 0
+            ))
+        ):
             raise ValueError("invalid annealing settings")
         self.qubo, self.decoder = qubo, decoder
         self.sweeps, self.restarts, self.seed = int(sweeps), int(restarts), int(seed)

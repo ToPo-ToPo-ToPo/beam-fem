@@ -7,6 +7,7 @@ backends remain usable without quantum dependencies.
 from __future__ import annotations
 
 from time import perf_counter
+import math
 from typing import Any, Callable, Sequence
 
 import numpy as np
@@ -43,15 +44,27 @@ class QAOABackend:
     def __init__(self, qubo: QUBOModel | None = None, decoder: Decoder | None = None,
                  sampler: Any | None = None, sampler_factory: Callable[[], Any] | None = None,
                  optimizer: Any | None = None, reps: int = 1, shots: int | None = 1024,
-                 seed: int = 0, pass_manager: Any | None = None, maxiter: int = 100):
+                 seed: int = 0, pass_manager: Any | None = None, maxiter: int = 100,
+                 execution_label: str | None = None,
+                 noise_model_description: str | None = None,
+                 execution_metadata_provider: Callable[[Any, Any], dict[str, Any]] | None = None,
+                 exact_reference_max_variables: int = 20):
         if reps < 1:
             raise ValueError("reps must be positive")
         if maxiter < 1:
             raise ValueError("maxiter must be positive")
+        if shots is not None and shots < 1:
+            raise ValueError("shots must be positive or None")
+        if exact_reference_max_variables < 0:
+            raise ValueError("exact_reference_max_variables cannot be negative")
         self.qubo, self.decoder = qubo, decoder
         self.sampler, self.sampler_factory = sampler, sampler_factory
         self.optimizer, self.reps, self.shots = optimizer, int(reps), shots
         self.seed, self.pass_manager, self.maxiter = int(seed), pass_manager, int(maxiter)
+        self.execution_label = execution_label
+        self.noise_model_description = noise_model_description
+        self.execution_metadata_provider = execution_metadata_provider
+        self.exact_reference_max_variables = int(exact_reference_max_variables)
 
     def solve_qubo(self, model: QUBOModel) -> QUBOSolution:
         (StatevectorSampler, COBYLA, QuadraticProgram,
@@ -75,19 +88,67 @@ class QAOABackend:
         if self.pass_manager is not None:
             kwargs["pass_manager"] = self.pass_manager
         qaoa = QAOA(**kwargs)
-        result = MinimumEigenOptimizer(qaoa).solve(qp)
+        quantum_started = perf_counter()
+        try:
+            result = MinimumEigenOptimizer(qaoa).solve(qp)
+        except Exception as exc:
+            raise RuntimeError(f"QAOA execution failed: {exc}") from exc
+        quantum_wall_time = perf_counter() - quantum_started
         samples = list(getattr(result, "samples", None) or [])
         if samples:
-            selected = min(samples, key=lambda sample: model.energy(np.rint(sample.x).astype(int)))
-            bits = tuple(int(round(v)) for v in np.asarray(selected.x))
+            checked_samples = []
+            for sample in samples:
+                raw = np.asarray(sample.x, dtype=float)
+                if raw.shape != (model.n_variables,) or not np.all(np.isfinite(raw)):
+                    raise RuntimeError("QAOA returned a non-finite or malformed sample")
+                sample_bits = tuple(int(round(v)) for v in raw)
+                if any(bit not in (0, 1) for bit in sample_bits):
+                    raise RuntimeError("QAOA returned values outside the binary domain")
+                checked_samples.append((model.energy(sample_bits), sample, sample_bits))
+            _, selected, bits = min(checked_samples, key=lambda item: item[0])
             probability = float(selected.probability)
+            if not math.isfinite(probability):
+                probability = None
         else:
-            bits = tuple(int(round(v)) for v in np.asarray(result.x))
-            probability = float("nan")
+            raw = np.asarray(result.x, dtype=float)
+            if raw.shape != (model.n_variables,) or not np.all(np.isfinite(raw)):
+                raise RuntimeError("QAOA returned a non-finite or malformed bit vector")
+            bits = tuple(int(round(v)) for v in raw)
+            probability = None
+        if len(bits) != model.n_variables or any(bit not in (0, 1) for bit in bits):
+            raise RuntimeError("QAOA returned values outside the binary domain")
+        fval = float(result.fval)
+        if not math.isfinite(fval):
+            fval = None
         metadata = {"reps": self.reps, "shots": self.shots, "seed": self.seed,
                     "maxiter": self.maxiter,
-                    "qiskit_status": str(result.status), "fval": float(result.fval),
-                    "selected_probability": probability, "samples": len(samples)}
+                    "qiskit_status": str(result.status), "fval": fval,
+                    "selected_probability": probability, "samples": len(samples),
+                    "execution_label": self.execution_label or type(sampler).__name__,
+                    "noise_model": self.noise_model_description,
+                    "qaoa_wall_time": quantum_wall_time,
+                    "quantum_execution_time": None}
+        minimum_result = getattr(result, "min_eigen_solver_result", None)
+        circuit = getattr(minimum_result, "optimal_circuit", None)
+        if minimum_result is not None:
+            optimizer_time = getattr(minimum_result, "optimizer_time", None)
+            evaluations = getattr(minimum_result, "cost_function_evals", None)
+            metadata["classical_optimizer_time"] = None if optimizer_time is None else float(optimizer_time)
+            metadata["cost_function_evaluations"] = None if evaluations is None else int(evaluations)
+        if circuit is not None:
+            metadata["logical_qubits"] = int(circuit.num_qubits)
+            metadata["logical_circuit_depth"] = int(circuit.depth())
+            metadata["logical_two_qubit_gates"] = sum(
+                1 for instruction in circuit.data if len(instruction.qubits) == 2
+            )
+            metadata["logical_gate_counts"] = {str(k): int(v) for k, v in circuit.count_ops().items()}
+        if model.n_variables <= self.exact_reference_max_variables:
+            exact = model.exact_solution(max_variables=self.exact_reference_max_variables)
+            metadata["exact_reference_energy"] = exact.energy
+            metadata["energy_gap_to_exact"] = model.energy(bits) - exact.energy
+        if self.execution_metadata_provider is not None:
+            supplied = dict(self.execution_metadata_provider(result, sampler))
+            metadata.update(supplied)
         return QUBOSolution(bits, model.energy(bits), metadata)
 
     def solve(self, problem: Any, initial_design: Any | None = None,

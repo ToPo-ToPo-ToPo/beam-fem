@@ -32,8 +32,9 @@ from .element3d import (
     rotation_matrix,
     transformation_matrix,
 )
-from .model import Model
+from .model import Model, TrussElement
 from .solver import StaticResult
+from .truss3d import truss_axial_force
 
 # 内力成分と応力成分のキー
 FORCE_COMPONENTS = ("N", "Vy", "Vz", "T", "My", "Mz")
@@ -62,6 +63,7 @@ class ElementForces:
     L: float
     f_local: np.ndarray  # 12成分の局所端力
     sec: object  # Section（応力計算に使用）
+    axial_only: bool = False
 
     # ---- 端での内力値 (node1, node2) ----
     def ends(self, comp: str) -> tuple[float, float]:
@@ -94,6 +96,8 @@ class ElementForces:
 
     # ---- 応力 ----
     def _bending_stress_at(self, My: float, Mz: float) -> float:
+        if self.axial_only:
+            return 0.0
         sec = self.sec
         s = 0.0
         if sec.cy is not None:
@@ -239,13 +243,19 @@ def recover_forces(model: Model, result: StaticResult) -> ForceResults:
     for i, (e, dofs) in enumerate(zip(model.elements, dof_maps)):
         p1, p2 = model.nodes[e.n1], model.nodes[e.n2]
         L = float(np.linalg.norm(p2 - p1))
-        k = local_stiffness(e.mat.E, e.mat.G, L, e.sec)
-        R = rotation_matrix(p1, p2, e.vref)
-        T = transformation_matrix(R)
         u_elem = result.u[dofs]
-        G = rigid_offset_matrix(e.offset)
-        if G is not None:
-            u_elem = G @ u_elem  # 節点変位 → 梁図心の変位（剛体腕）
-        f_local = k @ (T @ u_elem)
-        efs.append(ElementForces(index=i, L=L, f_local=f_local, sec=e.sec))
+        if isinstance(e, TrussElement):
+            axial = truss_axial_force(p1, p2, e.mat, e.sec, u_elem)
+            f_local = np.zeros(12)
+            f_local[0], f_local[6] = -axial, axial
+        else:
+            k = local_stiffness(e.mat.E, e.mat.G, L, e.sec)
+            R = rotation_matrix(p1, p2, e.vref)
+            T = transformation_matrix(R)
+            G = rigid_offset_matrix(e.offset)
+            if G is not None:
+                u_elem = G @ u_elem  # 節点変位 → 梁図心の変位（剛体腕）
+            f_local = k @ (T @ u_elem)
+        efs.append(ElementForces(index=i, L=L, f_local=f_local, sec=e.sec,
+                                 axial_only=isinstance(e, TrussElement)))
     return ForceResults(model=model, elements=efs)

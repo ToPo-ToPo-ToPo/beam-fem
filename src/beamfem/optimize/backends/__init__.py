@@ -7,6 +7,7 @@ from .base import (
 from .exact import ExactBackend
 from .greedy import GreedyBackend
 from .milp import MILPBackend, MILPFormulation
+from .multistart import MultiStartBackend
 from .qaoa import QAOABackend, QiskitNotInstalledError
 from .sa import SimulatedAnnealingBackend
 from .sequential import SequentialQUBOOptimizer
@@ -15,6 +16,7 @@ __all__ = [
     "DiscreteOptimizerBackend", "DiscreteProblemProtocol", "HistoryEntry",
     "OptimizationResult", "SolverLimits", "ExactBackend", "GreedyBackend",
     "MILPBackend", "MILPFormulation",
+    "MultiStartBackend",
     "SimulatedAnnealingBackend", "QAOABackend", "QiskitNotInstalledError",
     "SequentialQUBOOptimizer",
 ]

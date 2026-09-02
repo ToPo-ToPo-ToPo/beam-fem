@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from math import inf
+from math import inf, isfinite
 from time import perf_counter
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
@@ -27,6 +27,16 @@ class SolverLimits:
     max_evaluations: int | None = None
     max_iterations: int | None = None
     time_limit: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.max_evaluations is not None and self.max_evaluations < 1:
+            raise ValueError("max_evaluations must be positive")
+        if self.max_iterations is not None and self.max_iterations < 1:
+            raise ValueError("max_iterations must be positive")
+        if self.time_limit is not None and (
+            not isfinite(float(self.time_limit)) or self.time_limit <= 0
+        ):
+            raise ValueError("time_limit must be finite and positive")
 
 
 @dataclass(frozen=True)
@@ -66,9 +76,12 @@ class OptimizationResult:
                 constraints.append(item.as_dict() if hasattr(item, "as_dict") else item)
         except TypeError:
             constraints = self.constraints
+        objective = self.objective
+        if isinstance(objective, float) and not isfinite(objective):
+            objective = None
         return {
             "design": list(design_values(self.design)),
-            "objective": self.objective,
+            "objective": objective,
             "feasible": self.feasible,
             "constraints": constraints,
             "iterations": self.iterations,
@@ -142,7 +155,10 @@ def evaluate_problem(problem: Any, design: Any) -> Any:
 def evaluation_objective(evaluation: Any) -> float:
     """Extract a scalar objective from common evaluation result shapes."""
     if isinstance(evaluation, tuple) and evaluation:
-        return float(evaluation[0])
+        result = float(evaluation[0])
+        if not isfinite(result):
+            raise ValueError("evaluation objective must be finite")
+        return result
     for name in ("objective", "objective_value", "score", "mass"):
         value = getattr(evaluation, name, None)
         if value is None and isinstance(evaluation, Mapping):
@@ -152,7 +168,10 @@ def evaluation_objective(evaluation: Any) -> float:
                 value = value.value
             if isinstance(value, Mapping):
                 value = value.get("value", value.get("total"))
-            return float(value)
+            result = float(value)
+            if not isfinite(result):
+                raise ValueError("evaluation objective must be finite")
+            return result
     raise TypeError("evaluation does not expose objective, score, or mass")
 
 
@@ -166,6 +185,8 @@ def evaluation_feasible(evaluation: Any) -> bool:
     value = getattr(evaluation, "feasible", None)
     if value is None and isinstance(evaluation, Mapping):
         value = evaluation.get("feasible")
+    if isinstance(value, float) and not isfinite(value):
+        raise ValueError("evaluation feasibility must be finite")
     return bool(value) if value is not None else True
 
 
@@ -183,7 +204,10 @@ def evaluation_violation(evaluation: Any) -> float:
     if value is None and isinstance(evaluation, Mapping):
         value = evaluation.get("total_violation")
     if value is not None:
-        return max(0.0, float(value))
+        converted = float(value)
+        if not isfinite(converted):
+            raise ValueError("evaluation violation must be finite")
+        return max(0.0, converted)
     constraints = evaluation_constraints(evaluation)
     if isinstance(constraints, Mapping):
         constraints = constraints.values()
@@ -197,7 +221,10 @@ def evaluation_violation(evaluation: Any) -> float:
             elif isinstance(item, Mapping):
                 total += max(0.0, float(item.get("violation", item.get("value", 0.0))))
             else:
-                total += max(0.0, float(item))
+                converted = float(item)
+                if not isfinite(converted):
+                    raise ValueError("constraint violation must be finite")
+                total += max(0.0, converted)
     except TypeError:
         return 0.0 if evaluation_feasible(evaluation) else inf
     return total

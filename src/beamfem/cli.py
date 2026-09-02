@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from pathlib import Path
 import sys
 
-from .io import build_discrete_problem, load_problem_spec, write_result_json
+from .io import (
+    RunStatus, build_discrete_problem, create_run_manifest, load_problem_spec,
+    load_run_manifest, verify_resume_compatibility, write_design_report,
+    write_result_json, write_run_manifest,
+)
 from .optimize.backends import (
     ExactBackend,
     GreedyBackend,
@@ -17,7 +22,10 @@ from .optimize.backends import (
     SolverLimits,
 )
 from .optimize.qubo import AdaptivePenalty, LocalQUBOBuilder, TrustRegion
-from .validation import build_audit_metadata, diagnose_problem_spec
+from .validation import (
+    build_audit_metadata, build_dependency_audit, diagnose_problem_spec,
+    sha256_file, write_dependency_audit,
+)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -41,10 +49,26 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--qaoa-maxiter", type=int, default=100)
     parser.add_argument("--shots", type=int, default=1024)
     parser.add_argument("--fallback", choices=("none", "greedy", "sa"), default="greedy")
+    parser.add_argument("--manifest", type=Path, help="write an atomic resumable run manifest")
+    parser.add_argument("--resume", action="store_true", help="resume/revalidate the specified manifest")
+    parser.add_argument("--html-report", type=Path, help="write a preliminary-design HTML report")
+    parser.add_argument("--dependency-audit", type=Path, help="write checksums and an SBOM-like inventory")
+    parser.add_argument(
+        "--optimizer-checkpoint", type=Path,
+        help="write/resume the integrity-checked local-QUBO iteration checkpoint",
+    )
     return parser
 
 
-def _sequential(problem, args, quantum: bool):
+def _solver_settings(args) -> dict:
+    excluded = {
+        "input", "output", "manifest", "resume", "html_report", "dependency_audit",
+        "optimizer_checkpoint",
+    }
+    return {key: value for key, value in vars(args).items() if key not in excluded}
+
+
+def _sequential(problem, args, quantum: bool, *, use_checkpoint: bool = True):
     radius = max(1, args.trust_radius)
     builder = LocalQUBOBuilder(
         problem,
@@ -64,7 +88,9 @@ def _sequential(problem, args, quantum: bool):
             sweeps=args.sa_sweeps, restarts=args.sa_restarts, seed=args.seed
         )
     return SequentialQUBOOptimizer(
-        solver, builder, max_iterations=args.max_iterations
+        solver, builder, max_iterations=args.max_iterations,
+        checkpoint_path=args.optimizer_checkpoint if use_checkpoint else None,
+        resume=args.resume if use_checkpoint else False,
     )
 
 
@@ -82,13 +108,51 @@ def _fallback(problem, args):
     if args.fallback == "greedy":
         return GreedyBackend(penalty=args.penalty, pairwise=True)
     if args.fallback == "sa":
-        return _sequential(problem, args, False)
+        # A QAOA checkpoint has a different solver fingerprint and must never
+        # be reused by the SA fallback.
+        return _sequential(problem, args, False, use_checkpoint=False)
     return None
 
 
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
+    if args.resume and args.manifest is None:
+        raise ValueError("--resume requires --manifest")
     spec = load_problem_spec(args.input)
+    settings = _solver_settings(args)
+    manifest = None
+    if args.manifest is not None:
+        if args.resume:
+            manifest = load_run_manifest(args.manifest)
+            verify_resume_compatibility(
+                manifest, spec.data, solver=args.backend,
+                solver_settings=settings, seed=args.seed,
+            )
+            if manifest.status is RunStatus.COMPLETED and args.output.exists():
+                artifact_paths = manifest.checkpoint.get("artifact_paths", {})
+                for name, expected_digest in manifest.artifacts.items():
+                    stored_path = artifact_paths.get(name)
+                    if not stored_path:
+                        raise ValueError(
+                            f"completed manifest lacks path for artifact {name!r}"
+                        )
+                    artifact_path = Path(stored_path)
+                    if not artifact_path.is_file():
+                        raise ValueError(f"completed artifact is missing: {artifact_path}")
+                    if sha256_file(artifact_path).digest != expected_digest:
+                        raise ValueError(
+                            f"completed artifact checksum mismatch: {artifact_path}"
+                        )
+                print(f"run {manifest.run_id} already completed: output={args.output}")
+                return 0
+        else:
+            manifest = create_run_manifest(
+                spec.data, solver=args.backend, solver_settings=settings, seed=args.seed
+            )
+        manifest = manifest.advance(
+            "input_validated", checkpoint={"input": str(args.input.resolve())}
+        )
+        write_run_manifest(manifest, args.manifest)
     preflight = diagnose_problem_spec(spec.data)
     built = build_discrete_problem(spec)
     limits = SolverLimits(
@@ -99,21 +163,31 @@ def main(argv=None) -> int:
     warnings = list(preflight.warnings)
     selected_backend = args.backend
     try:
-        result = _backend(built.problem, args).solve(built.problem, limits=limits)
-    except (QiskitNotInstalledError, RuntimeError) as exc:
-        fallback = _fallback(built.problem, args) if args.backend == "qaoa" else None
-        if fallback is None:
-            raise
-        warnings.append(f"QAOA failed; used {args.fallback} fallback: {exc}")
-        selected_backend = args.fallback
-        result = fallback.solve(built.problem, limits=limits)
+        try:
+            result = _backend(built.problem, args).solve(built.problem, limits=limits)
+        except (QiskitNotInstalledError, RuntimeError) as exc:
+            fallback = _fallback(built.problem, args) if args.backend == "qaoa" else None
+            if fallback is None:
+                raise
+            warnings.append(f"QAOA failed; used {args.fallback} fallback: {exc}")
+            selected_backend = args.fallback
+            result = fallback.solve(built.problem, limits=limits)
+    except Exception as exc:
+        if manifest is not None:
+            manifest = manifest.advance(
+                "solver_failed",
+                checkpoint={"error_type": type(exc).__name__, "message": str(exc)},
+                status=RunStatus.FAILED,
+            )
+            write_run_manifest(manifest, args.manifest)
+        raise
 
     audit = build_audit_metadata(
         solver=selected_backend,
         seed=args.seed,
         solver_settings={
-            key: value for key, value in vars(args).items()
-            if key not in {"input", "output"}
+            **settings,
+            "selected_backend": selected_backend,
         },
         warnings=warnings,
         repository=Path(__file__).resolve().parents[2],
@@ -135,6 +209,44 @@ def main(argv=None) -> int:
         "optimization": result,
     }
     write_result_json(payload, args.output, audit=audit)
+    if args.html_report is not None:
+        write_design_report(
+            payload, args.html_report, audit=audit, manifest=manifest,
+            title=f"beamfem preliminary report: {payload['problem']}",
+        )
+    if args.dependency_audit is not None:
+        artifact_paths = [args.output]
+        if args.html_report is not None:
+            artifact_paths.append(args.html_report)
+        packages = ["beamfem", "numpy", "scipy"]
+        if args.backend == "qaoa":
+            packages.extend(("qiskit", "qiskit-optimization", "qiskit-aer"))
+        dependency_audit = build_dependency_audit(
+            packages=packages, artifacts=artifact_paths
+        )
+        write_dependency_audit(dependency_audit, args.dependency_audit)
+    if manifest is not None:
+        artifacts = {"result": sha256_file(args.output).digest}
+        artifact_paths = {"result": str(args.output.resolve())}
+        if args.html_report is not None:
+            artifacts["html_report"] = sha256_file(args.html_report).digest
+            artifact_paths["html_report"] = str(args.html_report.resolve())
+        if args.dependency_audit is not None:
+            artifacts["dependency_audit"] = sha256_file(args.dependency_audit).digest
+            artifact_paths["dependency_audit"] = str(args.dependency_audit.resolve())
+        manifest = manifest.advance(
+            "optimization_completed",
+            checkpoint={
+                "backend": selected_backend,
+                "objective": result.objective,
+                "feasible": result.feasible,
+                "evaluations": result.evaluations,
+                "artifact_paths": artifact_paths,
+            },
+            status=RunStatus.COMPLETED,
+        )
+        manifest = replace(manifest, artifacts=artifacts)
+        write_run_manifest(manifest, args.manifest)
     print(
         f"{result.backend}: objective={result.objective:.6g}, "
         f"feasible={result.feasible}, evaluations={result.evaluations}, "

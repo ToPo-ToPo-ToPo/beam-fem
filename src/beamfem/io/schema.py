@@ -10,12 +10,13 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 import json
+import math
 from pathlib import Path
 from typing import Any, Mapping
 
 
-CURRENT_SCHEMA_VERSION = "1.0"
-_SUPPORTED_VERSIONS = frozenset({CURRENT_SCHEMA_VERSION})
+CURRENT_SCHEMA_VERSION = "2.0"
+_SUPPORTED_VERSIONS = frozenset({"1.0", CURRENT_SCHEMA_VERSION})
 
 
 class SchemaValidationError(ValueError):
@@ -39,7 +40,11 @@ class ProblemSpec:
 
 
 def _is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
 
 
 def _require_mapping(value: Any, path: str, errors: list[str]) -> Mapping[str, Any]:
@@ -57,7 +62,7 @@ def _require_list(value: Any, path: str, errors: list[str]) -> list[Any]:
 
 
 def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
-    """Validate and copy a version 1 discrete-optimization input document.
+    """Validate and copy a supported discrete-optimization input document.
 
     The schema is intentionally structural: it validates identifiers,
     references, dimensions, and common physical fields without prescribing a
@@ -76,6 +81,29 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
         )
     if data.get("units") != "SI":
         errors.append("units must be 'SI'")
+    if version == "2.0":
+        metadata = _require_mapping(data.get("metadata"), "metadata", errors)
+        if not isinstance(metadata.get("model_id"), str) or not metadata.get("model_id"):
+            errors.append("metadata.model_id must be a non-empty string")
+        analysis = _require_mapping(data.get("analysis"), "analysis", errors)
+        if analysis.get("element_formulation") not in {"axial_truss", "frame", "mixed"}:
+            errors.append(
+                "analysis.element_formulation must be 'axial_truss', 'frame', or 'mixed'"
+            )
+        if analysis.get("dimension") not in {2, 3}:
+            errors.append("analysis.dimension must be 2 or 3")
+        if analysis.get("linearity") != "linear_elastic":
+            errors.append("analysis.linearity must be 'linear_elastic'")
+        governance = _require_mapping(data.get("governance"), "governance", errors)
+        if governance.get("design_status") not in {
+            "verification_only",
+            "preliminary_design",
+        }:
+            errors.append(
+                "governance.design_status must be verification_only or preliminary_design"
+            )
+        if governance.get("external_review_required") is not True:
+            errors.append("governance.external_review_required must be true")
     self_weight = data.get("self_weight")
     if self_weight is not None and (
         not isinstance(self_weight, list)
@@ -86,6 +114,7 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
 
     nodes = _require_list(data.get("nodes"), "nodes", errors)
     node_ids: set[str] = set()
+    coordinate_dimensions: set[int] = set()
     for i, node_value in enumerate(nodes):
         node = _require_mapping(node_value, f"nodes[{i}]", errors)
         node_id = node.get("id")
@@ -100,6 +129,15 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
             _is_number(v) for v in xyz
         ):
             errors.append(f"nodes[{i}].xyz must contain 2 or 3 numbers")
+        else:
+            coordinate_dimensions.add(len(xyz))
+    if len(coordinate_dimensions) > 1:
+        errors.append("all nodes must use the same coordinate dimension")
+    if version == "2.0" and coordinate_dimensions:
+        declared_dimension = analysis.get("dimension")
+        actual_dimension = next(iter(coordinate_dimensions))
+        if declared_dimension != actual_dimension:
+            errors.append("analysis.dimension does not match node coordinates")
 
     materials = _require_mapping(data.get("materials"), "materials", errors)
     for name, material_value in materials.items():
@@ -132,15 +170,16 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
                 )
             else:
                 entry_ids.add(entry_id)
-            for field in ("area", "I"):
-                value = entry.get(field)
-                if not _is_number(value) or value <= 0:
-                    errors.append(
-                        f"section_catalogs.{name}[{j}].{field} must be positive"
-                    )
+            area = entry.get("area")
+            if not _is_number(area) or area <= 0:
+                errors.append(f"section_catalogs.{name}[{j}].area must be positive")
+            inertia = entry.get("I")
+            if inertia is not None and (not _is_number(inertia) or inertia <= 0):
+                errors.append(f"section_catalogs.{name}[{j}].I must be positive when provided")
 
     members = _require_list(data.get("members"), "members", errors)
     member_ids: set[str] = set()
+    observed_member_types: set[str] = set()
     for i, member_value in enumerate(members):
         member = _require_mapping(member_value, f"members[{i}]", errors)
         member_id = member.get("id")
@@ -163,6 +202,29 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
             errors.append(f"members[{i}].material references an unknown material")
         if member.get("catalog") not in catalogs:
             errors.append(f"members[{i}].catalog references an unknown catalog")
+        member_type = member.get("member_type", "frame")
+        if member_type not in {"frame", "truss"}:
+            errors.append(f"members[{i}].member_type must be 'frame' or 'truss'")
+        else:
+            observed_member_types.add(member_type)
+        if member_type == "frame" and member.get("catalog") in catalogs:
+            for j, entry in enumerate(catalogs[member["catalog"]]):
+                if not _is_number(entry.get("I")) or entry["I"] <= 0:
+                    errors.append(
+                        f"section_catalogs.{member['catalog']}[{j}].I is required for frame members"
+                    )
+    if version == "2.0" and observed_member_types:
+        declared = analysis.get("element_formulation")
+        expected_types = {
+            "axial_truss": {"truss"},
+            "frame": {"frame"},
+            "mixed": {"frame", "truss"},
+        }.get(declared)
+        if expected_types is not None and observed_member_types != expected_types:
+            errors.append(
+                "analysis.element_formulation is inconsistent with members[].member_type: "
+                f"declared={declared!r}, observed={sorted(observed_member_types)}"
+            )
 
     supports = _require_list(data.get("supports", []), "supports", errors)
     for i, support_value in enumerate(supports):
@@ -191,6 +253,10 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
                 errors.append(
                     f"load_cases.{case_name}[{j}].force must contain 2 or 3 numbers"
                 )
+            elif coordinate_dimensions and len(force) != next(iter(coordinate_dimensions)):
+                errors.append(
+                    f"load_cases.{case_name}[{j}].force dimension does not match nodes"
+                )
 
     combinations = _require_mapping(
         data.get("load_combinations"), "load_combinations", errors
@@ -211,8 +277,37 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
                     f"load_combinations.{combo_name}.{case_name} must be numeric"
                 )
 
-    constraints = data.get("constraints", [])
-    _require_list(constraints, "constraints", errors)
+    constraints = _require_list(data.get("constraints", []), "constraints", errors)
+    member_by_id = {
+        member.get("id"): member for member in members if isinstance(member, Mapping)
+    }
+    for index, constraint_value in enumerate(constraints):
+        constraint = _require_mapping(constraint_value, f"constraints[{index}]", errors)
+        if constraint.get("type") != "euler_buckling":
+            continue
+        selected = constraint.get("members")
+        if selected is None:
+            selected_ids = set(member_by_id)
+        elif isinstance(selected, list) and all(isinstance(value, str) for value in selected):
+            selected_ids = set(selected)
+            unknown = selected_ids - set(member_by_id)
+            if unknown:
+                errors.append(f"constraints[{index}].members references unknown members")
+        else:
+            errors.append(f"constraints[{index}].members must be a list of member ids")
+            selected_ids = set()
+        required_catalogs = {
+            member_by_id[member_id].get("catalog")
+            for member_id in selected_ids if member_id in member_by_id
+        }
+        for catalog_name in required_catalogs:
+            if catalog_name not in catalogs:
+                continue
+            if any(not _is_number(entry.get("I")) or entry["I"] <= 0
+                   for entry in catalogs[catalog_name]):
+                errors.append(
+                    f"section_catalogs.{catalog_name} requires positive I for euler_buckling"
+                )
     objective = _require_mapping(data.get("objective"), "objective", errors)
     if objective.get("type") not in {"mass", "cost", "co2", "weighted"}:
         errors.append("objective.type must be mass, cost, co2, or weighted")

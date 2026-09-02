@@ -13,7 +13,7 @@ import numpy as np
 
 from .assembly import element_dof_map
 from .element3d import rotation_matrix, transformation_matrix
-from .model import DOF_PER_NODE, UX, UY, UZ, RX, RY, RZ, Model
+from .model import DOF_PER_NODE, UX, UY, UZ, RX, RY, RZ, Model, TrussElement
 from .solver import StaticResult
 
 
@@ -217,7 +217,12 @@ def plot_deformed(
         if show_undeformed:
             _plot_line(ax, np.vstack([p1, p2]), planar, color="0.75", lw=1.0, ls="--", zorder=1)
         u_elem = result.u[dofs]
-        curve = element_deformed_curve(p1, p2, u_elem, e.vref, scale=scale, n=n)
+        if isinstance(e, TrussElement):
+            xi = np.linspace(0.0, 1.0, n)[:, None]
+            curve = ((1.0 - xi) * p1 + xi * p2
+                     + scale * ((1.0 - xi) * u_elem[:3] + xi * u_elem[6:9]))
+        else:
+            curve = element_deformed_curve(p1, p2, u_elem, e.vref, scale=scale, n=n)
         _plot_line(ax, curve, planar, color="C0", lw=1.8, zorder=2)
 
     # シェル要素は節点並進変位で面を移動して描く（節点間は平面補間）
@@ -328,7 +333,7 @@ def plot_diagram(
     xi = np.linspace(0.0, 1.0, n)
     for e, ef in zip(model.elements, forces.elements):
         p1, p2 = model.nodes[e.n1], model.nodes[e.n2]
-        R = rotation_matrix(p1, p2, e.vref)
+        R = rotation_matrix(p1, p2, None if isinstance(e, TrussElement) else e.vref)
         d = R[dir_idx]  # 全体座標でのオフセット方向
         base = p1[None, :] + np.outer(xi, (p2 - p1))
         vals = ef.value(component, xi)

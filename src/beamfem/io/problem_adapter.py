@@ -40,7 +40,7 @@ class BuiltProblem:
 
 def _section(entry: Mapping[str, Any]) -> Section:
     area = float(entry["area"])
-    inertia = float(entry["I"])
+    inertia = float(entry.get("I", 0.0))
     # Version 1 uses a single inertia.  Treat it as both principal inertias;
     # the circular-equivalent edge distance enables conservative stress output.
     radius = math.sqrt(area / math.pi)
@@ -60,10 +60,8 @@ def _section(entry: Mapping[str, Any]) -> Section:
 def build_discrete_problem(spec: ProblemSpec | Mapping[str, Any]) -> BuiltProblem:
     """Build a SI ``DiscreteStructuralProblem`` from a validated v1 document.
 
-    Version 1 members are currently mapped to beam/frame elements.  An OFF
-    state is inserted before each catalog even though it is omitted from the
-    portable catalog.  A future schema version can explicitly distinguish
-    axial-only truss and beam members without changing the optimizer contract.
+    ``member_type`` は ``frame``（既定、後方互換）または ``truss``。OFF状態は
+    portable catalogに無くても各カタログの先頭へ追加する。
     """
 
     validated = spec if isinstance(spec, ProblemSpec) else validate_problem_spec(spec)
@@ -117,11 +115,10 @@ def build_discrete_problem(spec: ProblemSpec | Mapping[str, Any]) -> BuiltProble
         material_name = member["material"]
         catalog = catalog_templates[(material_name, member["catalog"])]
         active = [option for option in catalog.options if option.active]
-        index = model.add_element(
-            node_ids[member["nodes"][0]],
-            node_ids[member["nodes"][1]],
-            materials[material_name],
-            active[-1].section,
+        add = model.add_truss if member.get("member_type", "frame") == "truss" else model.add_element
+        index = add(
+            node_ids[member["nodes"][0]], node_ids[member["nodes"][1]],
+            materials[material_name], active[-1].section,
         )
         member_ids[member["id"]] = index
         catalogs.append(catalog)

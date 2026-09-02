@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "release_target": "1.0.0rc1",
+  "analysis": {
+    "reference_relative_error_max": 0.005,
+    "equilibrium_residual_max": 1e-8,
+    "rotation_invariance_relative_error_max": 1e-10
+  },
+  "optimization": {
+    "small_exact_relative_gap_max": 1e-9,
+    "minimum_stochastic_seeds": 10,
+    "minimum_feasibility_rate": 0.9,
+    "require_final_fem_recheck": true
+  },
+  "performance": {
+    "medium_speedup_target": 3.0,
+    "require_machine_manifest": true,
+    "require_large_case_checkpoint": true,
+    "require_time_and_evaluation_limits": true
+  },
+  "safety": {
+    "reject_nonfinite": true,
+    "reject_zero_length": true,
+    "reject_singular_mechanisms": true,
+    "unsupported_checks_are_errors": true,
+    "external_engineer_review_required": true
+  }
+}

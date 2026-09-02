@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import replace
+from concurrent.futures import ThreadPoolExecutor
 from math import inf
+from time import perf_counter
 from typing import Any, Sequence
 
 import numpy as np
@@ -73,13 +75,18 @@ class LocalQUBOBuilder:
 
     def __init__(self, problem: Any, domains: Sequence[Sequence[int]] | None = None,
                  max_candidates: int = 8, trust_region: TrustRegion | None = None,
-                 penalty: AdaptivePenalty | None = None):
+                 penalty: AdaptivePenalty | None = None, parallel_workers: int = 1,
+                 parallel_safe: bool = False):
         if max_candidates < 1:
             raise ValueError("max_candidates must be positive")
         self.problem, self.domains = problem, domains
         self.max_candidates = int(max_candidates)
         self.trust_region = trust_region or TrustRegion(radius=2)
         self.penalty = penalty or AdaptivePenalty(value=10.0)
+        self.parallel_workers = max(1, int(parallel_workers))
+        self.parallel_safe = bool(parallel_safe)
+        if self.parallel_workers > 1 and not self.parallel_safe and not hasattr(problem, "evaluate_many"):
+            raise ValueError("parallel evaluation requires parallel_safe=True or problem.evaluate_many")
         self.last_metadata: dict[str, Any] = {}
 
     @staticmethod
@@ -87,6 +94,7 @@ class LocalQUBOBuilder:
         return _objective(evaluation) + penalty * _violation(evaluation)
 
     def build(self, initial_design: Any) -> tuple[QUBOModel, Any]:
+        build_started = perf_counter()
         base = _values(initial_design)
         if self.domains is not None:
             domains = tuple(tuple(int(v) for v in d) for d in self.domains)
@@ -102,18 +110,40 @@ class LocalQUBOBuilder:
             if key not in cache_values:
                 cache_values[key] = self.problem.evaluate(_make(initial_design, key))
             return cache_values[key]
+        def evaluate_many(values_list):
+            missing = [tuple(values) for values in values_list if tuple(values) not in cache_values]
+            if missing:
+                batch = getattr(self.problem, "evaluate_many", None)
+                if batch is not None:
+                    results = batch([_make(initial_design, values) for values in missing])
+                elif self.parallel_workers > 1:
+                    with ThreadPoolExecutor(max_workers=self.parallel_workers) as executor:
+                        results = list(executor.map(
+                            self.problem.evaluate,
+                            [_make(initial_design, values) for values in missing],
+                        ))
+                else:
+                    results = [self.problem.evaluate(_make(initial_design, values)) for values in missing]
+                cache_values.update(zip(missing, results))
+            return [cache_values[tuple(values)] for values in values_list]
         base_eval = evaluate(base)
         base_merit = self._merit(base_eval, self.penalty.value)
-        moves = []
+        screening_started = perf_counter()
+        single_specs = []
         for member, domain in enumerate(domains):
             for state in domain:
                 if state == base[member]:
                     continue
                 changed = list(base); changed[member] = state
-                score = self._merit(evaluate(changed), self.penalty.value)
-                moves.append(DesignMove(member, state, score, base_merit - score))
+                single_specs.append((member, state, tuple(changed)))
+        single_evaluations = evaluate_many([spec[2] for spec in single_specs])
+        moves = []
+        for (member, state, _), single_evaluation in zip(single_specs, single_evaluations):
+            score = self._merit(single_evaluation, self.penalty.value)
+            moves.append(DesignMove(member, state, score, base_merit - score))
         moves.sort(key=lambda move: (-move.predicted_improvement, move.member, move.state))
         moves = moves[:self.max_candidates]
+        screening_seconds = perf_counter() - screening_started
 
         n_actions = len(moves)
         radius = min(self.trust_region.radius, max(1, len(base)))
@@ -124,7 +154,8 @@ class LocalQUBOBuilder:
         linear, quadratic = np.zeros(n), np.zeros((n, n))
         linear[:n_actions] = [move.single_merit - base_merit for move in moves]
 
-        pair_evaluations = 0
+        pair_started = perf_counter()
+        pair_specs = []
         for i, first in enumerate(moves):
             for j in range(i + 1, n_actions):
                 second = moves[j]
@@ -133,9 +164,12 @@ class LocalQUBOBuilder:
                     continue
                 changed = list(base)
                 changed[first.member], changed[second.member] = first.state, second.state
-                pair_merit = self._merit(evaluate(changed), self.penalty.value)
-                quadratic[i, j] += pair_merit - first.single_merit - second.single_merit + base_merit
-                pair_evaluations += 1
+                pair_specs.append((i, j, first, second, tuple(changed)))
+        pair_results = evaluate_many([spec[4] for spec in pair_specs])
+        for (i, j, first, second, _), pair_evaluation in zip(pair_specs, pair_results):
+            pair_merit = self._merit(pair_evaluation, self.penalty.value)
+            quadratic[i, j] += pair_merit - first.single_merit - second.single_merit + base_merit
+        pair_seconds = perf_counter() - pair_started
 
         coefficients = [1.0] * n_actions + [float(v) for v in slack_weights]
         surrogate_scale = max(float(np.max(np.abs(linear), initial=0.0)),
@@ -163,8 +197,11 @@ class LocalQUBOBuilder:
         self.last_metadata = {
             "base_merit": base_merit, "moves": tuple(moves), "radius": radius,
             "screened_moves": sum(len(d) - 1 for d in domains),
-            "pair_evaluations": pair_evaluations, "fem_evaluations": len(cache_values),
+            "pair_evaluations": len(pair_specs), "fem_evaluations": len(cache_values),
             "cardinality_penalty": cardinality_penalty,
+            "parallel_workers": self.parallel_workers,
+            "screening_seconds": screening_seconds, "pair_seconds": pair_seconds,
+            "build_seconds": perf_counter() - build_started,
             "base_bits": tuple([0] * n_actions + [
                 (radius >> i) & 1 for i in range(slack_width)
             ]),

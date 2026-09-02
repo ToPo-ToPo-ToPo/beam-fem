@@ -1,0 +1,26 @@
+{
+  "case_id": "mixed-frame-truss-series-v1",
+  "description": "One frame member and one axial truss member in series",
+  "dimension": 3,
+  "material": {"E": 200000000000.0, "nu": 0.3, "density": 7850.0},
+  "sections": {
+    "beam": {"type": "rectangle", "b": 0.08, "h": 0.1},
+    "bar": {"type": "generic", "A": 0.0004, "I": 1e-8}
+  },
+  "nodes": [[0.0, 0.0, 0.0], [1.2, 0.0, 0.0], [3.0, 0.0, 0.0]],
+  "members": [
+    {"type": "frame", "nodes": [0, 1], "section": "beam"},
+    {"type": "truss", "nodes": [1, 2], "section": "bar"}
+  ],
+  "supports": [
+    {"node": 0, "dofs": ["UX", "UY", "UZ", "RX", "RY", "RZ"]},
+    {"node": 2, "dofs": ["UY", "UZ"]}
+  ],
+  "loads": [{"node": 2, "force": [8000.0, 0.0, 0.0]}],
+  "expected": {
+    "node": 2,
+    "displacement": [0.000186, 0.0, 0.0],
+    "axial_forces": [8000.0, 8000.0],
+    "formula": "ux=P*Lb/(E*Ab)+P*Lt/(E*At)"
+  }
+}

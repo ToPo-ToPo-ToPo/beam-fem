@@ -11,6 +11,7 @@
 ## 特徴
 
 - **3D Timoshenko 梁要素**（せん断変形を考慮、Euler-Bernoulli を極限に含む）
+- **純粋な2D/3D軸力トラス要素**（梁・シェルとの混在、機構診断、軸力回収）
 - 軸・ねじり・2方向曲げ・せん断を統合した 12×12 要素剛性
 - **三角形フラットシェル要素**（3節点・各節点6自由度）：膜＝定ひずみ三角形 CST、板曲げ＝離散 Kirchhoff 三角形 DKT（薄板）。梁と混在可。単純支持板の Navier 解との一致を pytest で検証済み（誤差 <1%）
 - **四角形フラットシェル要素 MITC4**（4節点・各節点6自由度）：膜＝Q4、板曲げ＝MITC4（Mindlin-Reissner＋仮定横せん断）。**厚板〜薄板に対応**（せん断ロックなし）。Timoshenko 梁と同じくせん断変形を含む
@@ -56,8 +57,21 @@ pass managerはPython APIから差し替えられ、Qiskitがない環境では�
 利用できる。入力仕様と監査形式は [`docs/13_input_audit_benchmarks.md`](docs/13_input_audit_benchmarks.md)、
 設計と制約事項は [`docs/12_discrete_quantum_optimization.md`](docs/12_discrete_quantum_optimization.md) を参照。
 
-> 現行の共通アダプタは候補部材をTimoshenko梁・骨組要素として評価する。純粋な
-> ピン接合軸力トラスへの自動変換ではないため、接合モデルは用途に合わせて確認する。
+Schema v2では各部材を `member_type: frame | truss` で明示し、混在モデルも扱える。
+v1入力は後方互換のためframeとして移行され、暗黙にトラスへ変更されない。
+
+製品候補向けには、改ざん検知付きmanifest/checkpoint、HTMLレポート、依存監査も
+同時に生成できる。
+
+```bash
+beamfem-optimize workspace/small.json --output workspace/result.json --backend sa \
+  --manifest workspace/run.json --optimizer-checkpoint workspace/checkpoint.json \
+  --html-report workspace/report.html --dependency-audit workspace/dependencies.json
+```
+
+本版は `1.0.0rc1` であり、設計承認・法規適合を自動保証しない。AISC 360-22
+軸力部材チェックは限定previewで、責任ある構造設計者の外部レビューが必須である。
+リリース条件と未対応範囲は [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) を参照。
 
 ## 使い方（最小例：片持ち梁）
 

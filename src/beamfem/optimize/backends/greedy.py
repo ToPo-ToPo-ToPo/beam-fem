@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from time import perf_counter
+import math
 from typing import Any, Sequence
 
 from .base import (
@@ -23,6 +24,8 @@ class GreedyBackend:
                  max_pair_candidates: int | None = 24):
         self.domains = None if domains is None else tuple(tuple(d) for d in domains)
         self.penalty, self.pairwise = float(penalty), bool(pairwise)
+        if not math.isfinite(self.penalty) or self.penalty <= 0:
+            raise ValueError("penalty must be finite and positive")
         if max_pair_candidates is not None and max_pair_candidates < 2:
             raise ValueError("max_pair_candidates must be at least two or None")
         self.max_pair_candidates = max_pair_candidates

@@ -11,7 +11,7 @@ import numpy as np
 
 from ..forces import ElementForces, ForceResults, recover_forces
 from ..model import Element, Model
-from ..solver import StaticResult, solve_static
+from ..solver import StaticResult, factorize_static
 from .constraints import ConstraintRecord, FAILED_UTILIZATION
 from .objectives import MassObjective
 from .problem import DesignState, DiscreteStructuralProblem
@@ -95,11 +95,13 @@ class StructuralEvaluator:
         self._cache: dict[DesignState, EvaluationResult] = {}
         self.n_analysis = 0
         self.n_cache_hits = 0
+        self.n_factorizations = 0
 
     def clear_cache(self) -> None:
         self._cache.clear()
         self.n_analysis = 0
         self.n_cache_hits = 0
+        self.n_factorizations = 0
 
     @property
     def cache_info(self) -> dict[str, int]:
@@ -170,10 +172,12 @@ class StructuralEvaluator:
             base_model, mapping = self._model_for_design(design)
             if not base_model.elements and not base_model.shells and not base_model.quad_shells:
                 raise RuntimeError("active structural elements are empty")
+            factorization = factorize_static(base_model)
+            self.n_factorizations += 1
             for combination in self.problem.load_combinations:
                 model = copy.deepcopy(base_model)
                 model.nodal_loads = self._combined_loads(combination, design)
-                static = solve_static(model)
+                static = factorization.solve_model(model)
                 if not np.all(np.isfinite(static.u)) or not np.all(np.isfinite(static.reactions)):
                     raise RuntimeError("FEM returned non-finite displacement or reaction")
                 forces = recover_forces(model, static)

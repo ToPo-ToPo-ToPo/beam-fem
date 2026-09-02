@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "status": "pending",
+  "pilot_id": null,
+  "candidate_commit": null,
+  "input_checksum": null,
+  "output_checksum": null,
+  "independent_reference": null,
+  "comparisons": {
+    "reactions": null,
+    "displacements": null,
+    "member_forces": null,
+    "utilizations": null,
+    "governing_combinations": null
+  },
+  "accepted_by": null,
+  "accepted_at": null,
+  "notes": []
+}

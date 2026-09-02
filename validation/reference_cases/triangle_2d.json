@@ -1,0 +1,26 @@
+{
+  "case_id": "triangle-2d-handcalc-v1",
+  "description": "Symmetric three-bar planar truss with a vertical apex load",
+  "dimension": 2,
+  "material": {"E": 200000000000.0, "nu": 0.3, "density": 7850.0},
+  "sections": {"bar": {"type": "generic", "A": 0.0004, "I": 1e-8}},
+  "nodes": [[-1.5, 0.0, 0.0], [1.5, 0.0, 0.0], [0.0, 2.0, 0.0]],
+  "members": [
+    {"type": "truss", "nodes": [0, 1], "section": "bar"},
+    {"type": "truss", "nodes": [0, 2], "section": "bar"},
+    {"type": "truss", "nodes": [1, 2], "section": "bar"}
+  ],
+  "supports": [
+    {"node": 0, "dofs": ["UX", "UY", "UZ"]},
+    {"node": 1, "dofs": ["UX", "UY", "UZ"]},
+    {"node": 2, "dofs": ["UZ"]}
+  ],
+  "loads": [{"node": 2, "force": [0.0, -30000.0, 0.0]}],
+  "expected": {
+    "node": 2,
+    "displacement": [0.0, -0.000732421875, 0.0],
+    "axial_forces": [0.0, -18750.0, -18750.0],
+    "formula": "uy=-P*L/(2*E*A*sin(theta)^2); Ndiag=-P/(2*sin(theta))"
+  },
+  "rotation_check_degrees": 37.0
+}

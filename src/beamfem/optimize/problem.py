@@ -65,9 +65,9 @@ class DiscreteStructuralProblem:
     """FEM評価器と全最適化backendが共有する問題定義。
 
     ``catalogs[i]`` は必ず ``model.elements[i]`` に対応する。モデル・荷重・断面は
-    SI一貫単位（m, N, Pa, kg）を前提とする。現時点の ``Model.elements`` は
-    Timoshenko梁なので、本評価器も曲げ・せん断を含む骨組解析である。軸力だけの
-    truss要素へ暗黙に置換はしない。
+    SI一貫単位（m, N, Pa, kg）を前提とする。``Model.elements`` の実型に従い、
+    ``Element`` はTimoshenko梁、``TrussElement`` は軸力専用として解析する。
+    両形式は同一モデル内で混在でき、相互に暗黙変換しない。
     """
 
     model: Model

@@ -20,6 +20,10 @@
 | [10. 三角形シェル要素](10_shell_element.md) | 三角形フラットシェル（CST 膜 + DKT 板曲げ・薄板）・ドリリング・梁連成・応力回収 | `shell3d.py`, `shell.py` |
 | [11. 四角形シェル MITC4](11_quad_shell_mitc4.md) | 四角形フラットシェル（Q4 膜 + MITC4 板曲げ・厚板〜薄板）・タイング・応力回収・最適化連成 | `shell_mitc4.py`, `shell.py` |
 | [12. 実用向け離散構造・量子最適化](12_discrete_quantum_optimization.md) | 共通FEM、離散バックエンド、局所QUBO、監査・検証方針 | `optimize/`, `validation/` |
+| [13. 入力・監査・ベンチマーク](13_input_audit_benchmarks.md) | JSON/YAML、監査、比較ケース | `io/`, `benchmarks/` |
+| [14. 製品範囲・設計照査](14_product_scope_and_code_checks.md) | Schema v2、照査trace、AISC preview、外部review gate | `validation/`, `io/` |
+| [15. 製品要件・リリース条件](15_product_requirements.md) | 適用範囲、精度・性能基準、RC判定 | `validation/` |
+| [16. 量子バックエンド検証](16_quantum_validation.md) | Statevector/Aer/実機差替え、証拠要件 | `optimize/backends/qaoa.py` |
 
 ## 例題
 
@@ -57,7 +61,7 @@
 
 ## 実装済み機能の総覧
 
-- **解析**：3D Timoshenko 梁の静的線形解析（2D 面内骨組も）、内力・応力の回収
+- **解析**：3D Timoshenko 梁と2D/3D軸力トラスの静的線形解析、混在、内力・応力の回収
 - **シェル**：三角形（CST+DKT, 薄板）・四角形 MITC4（Q4+Mindlin, 厚板〜薄板）フラットシェル（各節点6自由度・梁と混在可）
 - **断面**：矩形・円・パイプ・箱型・I 形・自由断面
 - **可視化**：変形図・断面力図・構造形態図・トラス配置図

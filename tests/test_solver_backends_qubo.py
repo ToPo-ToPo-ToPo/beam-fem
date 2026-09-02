@@ -5,8 +5,10 @@ import pytest
 
 from beamfem.optimize.backends import (
     ExactBackend, GreedyBackend, MILPBackend, MILPFormulation, QAOABackend,
-    SequentialQUBOOptimizer, SimulatedAnnealingBackend,
+    MultiStartBackend, SequentialQUBOOptimizer, SimulatedAnnealingBackend,
 )
+from beamfem.optimize.backends.milp import build_truss_sizing_milp
+from beamfem.optimize.topology import GroundStructure
 from beamfem.optimize.backends.base import design_values
 from beamfem.optimize.qubo import (
     AdaptivePenalty, BinaryEncoding, LocalQUBOBuilder, LocalQUBOProblemAdapter,
@@ -124,6 +126,9 @@ def test_qaoa_current_sampler_v2_api_when_optional_dependencies_are_installed():
     solution = QAOABackend(reps=1, shots=256, seed=3).solve_qubo(model)
     assert len(solution.bits) == 2
     assert solution.energy == pytest.approx(model.energy(solution.bits))
+    assert solution.metadata["logical_circuit_depth"] >= 1
+    assert solution.metadata["logical_qubits"] == 2
+    assert solution.metadata["energy_gap_to_exact"] >= -1e-12
 
 
 def test_local_qubo_adapter_connects_canonical_problem_to_sa_and_qaoa_path():
@@ -156,3 +161,65 @@ def test_sequential_qubo_updates_from_predicted_and_actual_fem_improvement():
     assert result.solver_metadata["qubo_history"][0]["fem_feasible"]
     assert builder.trust_region.history
     assert "rho" in builder.trust_region.history[0]
+
+
+def test_parallel_local_evaluation_is_explicit_and_reports_phase_timings():
+    problem = ToyProblem()
+    with pytest.raises(ValueError, match="parallel_safe"):
+        LocalQUBOBuilder(problem, parallel_workers=2)
+    builder = LocalQUBOBuilder(problem, max_candidates=4, parallel_workers=2,
+                               parallel_safe=True, penalty=AdaptivePenalty(value=100.0))
+    builder.build(problem.initial_design)
+    assert builder.last_metadata["parallel_workers"] == 2
+    assert builder.last_metadata["build_seconds"] >= builder.last_metadata["screening_seconds"]
+
+
+def test_checkpoint_resume_and_optimality_gap(tmp_path):
+    checkpoint = tmp_path / "optimizer.json"
+    problem = ToyProblem()
+    first_builder = LocalQUBOBuilder(problem, max_candidates=4,
+                                     penalty=AdaptivePenalty(value=100.0))
+    first = SequentialQUBOOptimizer(
+        SimulatedAnnealingBackend(sweeps=200, restarts=3, seed=2), first_builder,
+        max_iterations=1, checkpoint_path=checkpoint, reference_objective=2.0,
+    ).solve(problem)
+    assert checkpoint.exists() and first.solver_metadata["optimality_gap"] == pytest.approx(0.0)
+    second_builder = LocalQUBOBuilder(problem, max_candidates=4,
+                                      penalty=AdaptivePenalty(value=100.0))
+    resumed = SequentialQUBOOptimizer(
+        SimulatedAnnealingBackend(sweeps=200, restarts=3, seed=2), second_builder,
+        max_iterations=1, checkpoint_path=checkpoint, resume=True,
+    ).solve(problem)
+    assert resumed.solver_metadata["resumed"]
+    assert resumed.objective == first.objective
+
+
+def test_multi_start_reports_all_runs_and_reference_gap():
+    result = MultiStartBackend(lambda seed: GreedyBackend(penalty=100.0),
+                               starts=3, seed=9, reference_objective=2.0).solve(ToyProblem())
+    assert result.feasible and result.objective == 2.0
+    assert len(result.solver_metadata["multi_start"]) == 3
+    assert result.solver_metadata["optimality_gap"] == pytest.approx(0.0)
+
+
+def test_truss_milp_builder_states_exact_scope_and_fem_revalidation():
+    gs = GroundStructure(
+        nodes=np.array([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]]),
+        members=[(0, 1), (0, 2), (1, 2)],
+        supports={0: [0, 1], 1: [1]},
+        load_cases=[{(2, 1): -1.0}],
+    )
+    formulation = build_truss_sizing_milp(gs, [0.0, 0.1], density=1.0,
+                                           tensile_stress=100.0)
+
+    class TrussProblem:
+        initial_design = State((0, 0, 0))
+        domains = ((0, 1),) * 3
+        def evaluate(self, design):
+            choices = design_values(design)
+            return Evaluation(float(sum(choices)), True, ())
+
+    result = MILPBackend(formulation).solve(TrussProblem())
+    assert result.feasible
+    assert result.solver_metadata["formulation_scope"] == "truss_equilibrium_and_section_capacity"
+    assert not result.solver_metadata["elastic_compatibility"]

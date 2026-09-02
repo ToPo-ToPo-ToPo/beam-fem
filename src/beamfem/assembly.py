@@ -11,9 +11,10 @@ import numpy as np
 import scipy.sparse as sp
 
 from .element3d import element_stiffness_global
-from .model import DOF_PER_NODE, Model
+from .model import DOF_PER_NODE, Model, TrussElement
 from .shell3d import shell_stiffness_global
 from .shell_mitc4 import quad_shell_stiffness_global
+from .truss3d import truss_stiffness_global
 
 
 def _node_dofs(node: int) -> np.ndarray:
@@ -23,7 +24,7 @@ def _node_dofs(node: int) -> np.ndarray:
 
 
 def element_dof_map(model: Model) -> list[np.ndarray]:
-    """各梁要素の 12 個の全体自由度番号を返す。"""
+    """各梁・トラス要素の12個の全体自由度番号を返す。"""
     return [np.concatenate([_node_dofs(e.n1), _node_dofs(e.n2)]) for e in model.elements]
 
 
@@ -52,7 +53,7 @@ def assemble_stiffness(
 ) -> sp.csr_matrix:
     """全体剛性行列 K (n_dof x n_dof) を CSR 疎行列で返す。
 
-    梁要素（12x12）・3節点シェル（18x18）・4節点シェル（24x24）を組み立てる。
+    梁/トラス要素（12x12）・3節点シェル（18x18）・4節点シェル（24x24）を組み立てる。
     """
     if dof_maps is None:
         dof_maps = element_dof_map(model)
@@ -74,7 +75,10 @@ def assemble_stiffness(
     for i, e in enumerate(model.elements):
         p1 = model.nodes[e.n1]
         p2 = model.nodes[e.n2]
-        ke = element_stiffness_global(p1, p2, e.mat, e.sec, e.vref, e.offset)
+        if isinstance(e, TrussElement):
+            ke = truss_stiffness_global(p1, p2, e.mat, e.sec)
+        else:
+            ke = element_stiffness_global(p1, p2, e.mat, e.sec, e.vref, e.offset)
         dofs = dof_maps[i]
         rr, cc = np.meshgrid(dofs, dofs, indexing="ij")
         sl = slice(i * 144, (i + 1) * 144)

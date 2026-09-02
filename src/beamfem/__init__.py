@@ -5,10 +5,10 @@
 
 from .material import Material, Section
 from .model import (
-    Model, Element, ShellElement, QuadShellElement,
+    Model, Element, TrussElement, ShellElement, QuadShellElement,
     UX, UY, UZ, RX, RY, RZ, DOF_PER_NODE,
 )
-from .solver import solve_static, StaticResult
+from .solver import solve_static, StaticResult, StructuralMechanismError
 from .forces import (
     recover_forces,
     ForceResults,
@@ -20,17 +20,19 @@ from .shell import recover_shell_forces, ShellForceResults, ShellForces
 from .workspace import set_workspace, get_workspace
 from .builders import radial_grillage, lump_pressure, Grillage
 
-__version__ = "0.1.0"
+__version__ = "1.0.0rc1"
 
 __all__ = [
     "Material",
     "Section",
     "Model",
     "Element",
+    "TrussElement",
     "ShellElement",
     "QuadShellElement",
     "solve_static",
     "StaticResult",
+    "StructuralMechanismError",
     "recover_shell_forces",
     "ShellForceResults",
     "ShellForces",

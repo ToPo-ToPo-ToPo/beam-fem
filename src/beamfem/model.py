@@ -37,6 +37,20 @@ class Element:
 
 
 @dataclass
+class TrussElement:
+    """2節点軸力要素。
+
+    2D/3Dとも全体座標の方向余弦から剛性を構成し、曲げ・せん断・ねじり剛性は
+    持たない。断面の ``A`` のみが剛性に寄与する。
+    """
+
+    n1: int
+    n2: int
+    mat: Material
+    sec: Section
+
+
+@dataclass
 class ShellElement:
     """3節点フラットシェル要素（膜 CST + 板曲げ DKT）。
 
@@ -70,14 +84,14 @@ class QuadShellElement:
 
 @dataclass
 class Model:
-    """梁構造モデル。
+    """梁・トラス・シェル構造モデル。
 
     nodes : (N, 3) の節点座標配列
     elements : Element のリスト
     """
 
     nodes: np.ndarray = field(default_factory=lambda: np.empty((0, 3)))
-    elements: list[Element] = field(default_factory=list)
+    elements: list[Element | TrussElement] = field(default_factory=list)
     shells: list[ShellElement] = field(default_factory=list)
     quad_shells: list[QuadShellElement] = field(default_factory=list)
     # 拘束: {(node, local_dof): 強制変位値}。値0で固定支持。
@@ -107,6 +121,11 @@ class Model:
         （リブ・スティフナの偏心配置, 全体座標・両端共通）。
         """
         self.elements.append(Element(n1, n2, mat, sec, vref, offset))
+        return len(self.elements) - 1
+
+    def add_truss(self, n1: int, n2: int, mat: Material, sec: Section) -> int:
+        """2D/3D軸力トラス要素を追加し、共通部材indexを返す。"""
+        self.elements.append(TrussElement(n1, n2, mat, sec))
         return len(self.elements) - 1
 
     def add_shell(
@@ -169,5 +188,5 @@ class Model:
     def n_dof(self) -> int:
         return self.n_nodes * DOF_PER_NODE
 
-    def element_length(self, e: Element) -> float:
+    def element_length(self, e: Element | TrussElement) -> float:
         return float(np.linalg.norm(self.nodes[e.n2] - self.nodes[e.n1]))

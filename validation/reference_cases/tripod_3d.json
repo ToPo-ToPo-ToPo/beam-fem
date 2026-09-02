@@ -1,0 +1,30 @@
+{
+  "case_id": "tripod-3d-handcalc-v1",
+  "description": "Three identical bars equally spaced around a vertically loaded apex",
+  "dimension": 3,
+  "material": {"E": 200000000000.0, "nu": 0.3, "density": 7850.0},
+  "sections": {"bar": {"type": "generic", "A": 0.0004, "I": 1e-8}},
+  "nodes": [
+    [1.2, 0.0, 0.0],
+    [-0.6, 1.0392304845413265, 0.0],
+    [-0.6, -1.0392304845413265, 0.0],
+    [0.0, 0.0, 2.5]
+  ],
+  "members": [
+    {"type": "truss", "nodes": [0, 3], "section": "bar"},
+    {"type": "truss", "nodes": [1, 3], "section": "bar"},
+    {"type": "truss", "nodes": [2, 3], "section": "bar"}
+  ],
+  "supports": [
+    {"node": 0, "dofs": ["UX", "UY", "UZ"]},
+    {"node": 1, "dofs": ["UX", "UY", "UZ"]},
+    {"node": 2, "dofs": ["UX", "UY", "UZ"]}
+  ],
+  "loads": [{"node": 3, "force": [0.0, 0.0, -24000.0]}],
+  "expected": {
+    "node": 3,
+    "displacement": [0.0, 0.0, -0.0003412003691439971],
+    "axial_forces": [-8873.87175927171, -8873.87175927171, -8873.87175927171],
+    "formula": "uz=-P*L^3/(3*E*A*h^2); N=-P*L/(3*h)"
+  }
+}

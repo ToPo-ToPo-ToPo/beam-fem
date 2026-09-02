@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "status": "pending",
+  "candidate_commit": null,
+  "reviewer": {
+    "name": null,
+    "organization": null,
+    "qualification": null,
+    "independent_from_implementation": null
+  },
+  "reviewed_at": null,
+  "checks": {
+    "model_scope_and_limitations": "pending",
+    "boundary_conditions_and_sign_conventions": "pending",
+    "reference_analysis_results": "pending",
+    "design_rule_equations_and_errata": "pending",
+    "governing_member_spot_checks": "pending",
+    "load_combinations": "pending",
+    "optimization_final_fem_recheck": "pending",
+    "audit_and_reproducibility": "pending"
+  },
+  "blocking_findings": [],
+  "nonblocking_findings": [],
+  "signature_or_approval_reference": null
+}

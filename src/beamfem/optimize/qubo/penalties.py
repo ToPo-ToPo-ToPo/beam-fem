@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 
 
 @dataclass
@@ -16,7 +17,16 @@ class AdaptivePenalty:
     history: list[float] = field(default_factory=list, init=False)
 
     def __post_init__(self):
-        if not 0 <= self.target_feasible_rate <= 1 or self.value <= 0:
+        numeric = (
+            self.value, self.minimum, self.maximum, self.increase, self.decrease,
+            self.target_feasible_rate,
+        )
+        if (
+            not all(math.isfinite(float(value)) for value in numeric)
+            or not 0 <= self.target_feasible_rate <= 1
+            or self.value <= 0 or not 0 < self.minimum <= self.maximum
+            or self.increase <= 0 or self.decrease <= 0
+        ):
             raise ValueError("invalid adaptive penalty settings")
         self.value = min(self.maximum, max(self.minimum, float(self.value)))
 
