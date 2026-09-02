@@ -114,7 +114,41 @@ $12\times12$ の変換行列 $\mathbf{T}$ は $\mathbf{R}$ を 4 ブロック対
 
 $$\boxed{\;\mathbf{K}^e = \mathbf{T}^\top \mathbf{k}\, \mathbf{T}\;}$$
 
-## 1.5 検証（解析解との一致）
+## 1.5 剛体オフセット（偏心配置）
+
+梁図心を節点位置からずらして配置したい場合（板に付くリブ・スティフナなど）、
+**剛体腕（rigid offset）**で図心の自由度を節点（マスター）自由度に結ぶ。両端
+共通のオフセット $\mathbf{r}$（節点→図心の全体ベクトル）に対し、微小変形では
+
+$$\mathbf{u}_{\text{beam}} = \mathbf{u}_{\text{node}} + \boldsymbol{\theta}_{\text{node}}\times\mathbf{r},
+\qquad \boldsymbol{\theta}_{\text{beam}} = \boldsymbol{\theta}_{\text{node}}$$
+
+これは $6\times6$ ブロック
+
+$$\mathbf{G}_{\text{node}} = \begin{bmatrix} \mathbf{I}_3 & -[\mathbf{r}]_\times \\ \mathbf{0} & \mathbf{I}_3 \end{bmatrix},
+\qquad [\mathbf{r}]_\times \boldsymbol{\theta} = \mathbf{r}\times\boldsymbol{\theta}$$
+
+を両端に並べた $12\times12$ 変換 $\mathbf{G}$ で表せる。図心で組んだ要素剛性を節点へ
+
+$$\boxed{\;\mathbf{K}^e_{\text{node}} = \mathbf{G}^\top \big(\mathbf{T}^\top \mathbf{k}\,\mathbf{T}\big)\, \mathbf{G}\;}$$
+
+と移す。これにより**節点回転がオフセット点の軸伸縮を生む軸-曲げ連成**が現れ、
+T 形断面の合成剛性 $EA\,e^2$（$e=\lVert\mathbf{r}\rVert$）が取り込まれる。両端
+共通オフセットでは長さ・向きは不変なので、図心剛性 $\mathbf{T}^\top\mathbf{k}\mathbf{T}$
+自体は変わらず、連成はすべて $\mathbf{G}$ が担う。`add_element(..., offset=...)`
+で指定し、内力回収も $\mathbf{G}$ を介して図心の値に整合させる。
+
+> 合成効果は、オフセット部材の軸力を相手（板の膜や連続体）が拘束して初めて
+> 働く。孤立した片持ち梁では軸力が立たず、たわみは変わらない点に注意（検証は
+> [`tests/test_offset.py`](../tests/test_offset.py)：剛体リンク明示モデルとの一致）。
+
+コード対応: 剛体腕 $\mathbf{G}$ は `element3d.rigid_offset_matrix`、要素剛性への適用は
+`element3d.element_stiffness_global`（`offset` 引数）、内力回収は
+`forces.recover_forces`（$\mathbf{G}$ を介して図心変位へ）。`Element.offset` に保持し
+`Model.add_element(..., offset=...)` で与える。リブ補強板の例
+`examples/ribbed_plate_shell.py`（めり込み $e=0$ vs 正規オフセット $e=t/2+h/2$ の比較）。
+
+## 1.6 検証（解析解との一致）
 
 実装は片持ち梁の Timoshenko 厳密たわみと**1 要素でも厳密一致**する：
 
@@ -124,7 +158,7 @@ $$\delta_{\text{tip}} = \frac{P L^3}{3 E I} + \frac{P L}{k\,G\,A}
 テスト [`tests/test_cantilever.py`](../tests/test_cantilever.py) で
 2 方向曲げ・軸・要素分割不変性・反力の釣り合いを確認している。
 
-## 1.6 剛性の解析的偏微分（最適化用）
+## 1.7 剛性の解析的偏微分（最適化用）
 
 サイジング最適化の感度計算のため、局所剛性の断面諸量に関する偏微分
 $\partial\mathbf{k}/\partial A,\ \partial\mathbf{k}/\partial I_y,\ \partial\mathbf{k}/\partial I_z,\ \partial\mathbf{k}/\partial J$

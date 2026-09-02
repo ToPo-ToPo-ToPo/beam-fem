@@ -17,6 +17,21 @@ from .model import DOF_PER_NODE, UX, UY, UZ, RX, RY, RZ, Model
 from .solver import StaticResult
 
 
+def _draw_shell_faces(ax, tris, planar, **kw):
+    """三角形頂点リスト tris (各 (3,3) 配列) を面として描く。"""
+    if not tris:
+        return
+    if planar:
+        from matplotlib.collections import PolyCollection
+
+        polys = [t[:, :2] for t in tris]
+        ax.add_collection(PolyCollection(polys, **kw))
+    else:
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+        ax.add_collection3d(Poly3DCollection(tris, **kw))
+
+
 # ----------------------------------------------------------------------
 # 変形形状の補間
 # ----------------------------------------------------------------------
@@ -148,6 +163,11 @@ def plot_model(
     else:
         fig = ax.figure
 
+    tris = [np.vstack([model.nodes[s.n1], model.nodes[s.n2], model.nodes[s.n3]])
+            for s in model.shells]
+    _draw_shell_faces(ax, tris, planar, facecolor="C0", edgecolor="0.4",
+                      alpha=0.25, lw=0.8, zorder=0)
+
     for e in model.elements:
         pts = np.vstack([model.nodes[e.n1], model.nodes[e.n2]])
         _plot_line(ax, pts, planar, color="0.4", lw=1.5, zorder=1)
@@ -199,6 +219,23 @@ def plot_deformed(
         u_elem = result.u[dofs]
         curve = element_deformed_curve(p1, p2, u_elem, e.vref, scale=scale, n=n)
         _plot_line(ax, curve, planar, color="C0", lw=1.8, zorder=2)
+
+    # シェル要素は節点並進変位で面を移動して描く（節点間は平面補間）
+    if model.shells:
+        und, defm = [], []
+        for s in model.shells:
+            verts = np.vstack([model.nodes[s.n1], model.nodes[s.n2], model.nodes[s.n3]])
+            disp = np.vstack([result.node_disp(s.n1)[:3],
+                              result.node_disp(s.n2)[:3],
+                              result.node_disp(s.n3)[:3]])
+            und.append(verts)
+            defm.append(verts + scale * disp)
+        if show_undeformed:
+            for v in und:  # 変形前は辺のワイヤフレームで薄く描く
+                _plot_line(ax, np.vstack([v, v[0]]), planar, color="0.75",
+                           lw=0.8, ls="--", zorder=1)
+        _draw_shell_faces(ax, defm, planar, facecolor="C0", edgecolor="0.3",
+                          alpha=0.35, lw=0.8, zorder=2)
 
     ax.set_title(f"Deformed shape (x{scale:.3g})")
     return fig, ax

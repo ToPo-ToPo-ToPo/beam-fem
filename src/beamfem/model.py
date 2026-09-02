@@ -20,13 +20,52 @@ UX, UY, UZ, RX, RY, RZ = range(6)
 
 @dataclass
 class Element:
-    """2節点梁要素。"""
+    """2節点梁要素。
+
+    offset を与えると、要素（梁の図心軸）を節点位置から剛体腕でずらして評価する
+    「オフセット梁」になる。リブ・スティフナを板（シェル）の中立面より下げて配置
+    する用途で、軸-曲げ連成（T 形断面の合成剛性 EA·e²）を取り込める。offset は
+    両端共通の全体座標ベクトル（節点→梁図心へのずれ）。
+    """
 
     n1: int  # 節点インデックス
     n2: int
     mat: Material
     sec: Section
     vref: np.ndarray | None = None  # 局所y軸の参照ベクトル（断面の向き）
+    offset: np.ndarray | None = None  # 剛体腕（節点→梁図心, 全体座標, 両端共通）
+
+
+@dataclass
+class ShellElement:
+    """3節点フラットシェル要素（膜 CST + 板曲げ DKT）。
+
+    各節点 6 自由度（梁と共通の並び）。局所座標系は 3 節点の位置から決まる
+    （詳細は :mod:`beamfem.shell3d`）。thickness は板厚 [m]。
+    """
+
+    n1: int
+    n2: int
+    n3: int
+    mat: Material
+    thickness: float
+
+
+@dataclass
+class QuadShellElement:
+    """4節点フラットシェル要素（膜 Q4 + 板曲げ MITC4）。
+
+    各節点 6 自由度（梁と共通の並び）。Mindlin-Reissner 板理論に基づき横せん断
+    変形を含む（MITC タイングでロック回避）ので厚板〜薄板に対応する。節点は反時計
+    まわりの順で与える（詳細は :mod:`beamfem.shell_mitc4`）。thickness は板厚 [m]。
+    """
+
+    n1: int
+    n2: int
+    n3: int
+    n4: int
+    mat: Material
+    thickness: float
 
 
 @dataclass
@@ -39,6 +78,8 @@ class Model:
 
     nodes: np.ndarray = field(default_factory=lambda: np.empty((0, 3)))
     elements: list[Element] = field(default_factory=list)
+    shells: list[ShellElement] = field(default_factory=list)
+    quad_shells: list[QuadShellElement] = field(default_factory=list)
     # 拘束: {(node, local_dof): 強制変位値}。値0で固定支持。
     constraints: dict[tuple[int, int], float] = field(default_factory=dict)
     # 節点荷重: {(node, local_dof): 値}
@@ -58,10 +99,43 @@ class Model:
         mat: Material,
         sec: Section,
         vref: np.ndarray | None = None,
+        offset: np.ndarray | None = None,
     ) -> int:
-        """要素を追加しインデックスを返す。"""
-        self.elements.append(Element(n1, n2, mat, sec, vref))
+        """要素を追加しインデックスを返す。
+
+        offset を与えると梁図心を節点から剛体腕でずらすオフセット梁になる
+        （リブ・スティフナの偏心配置, 全体座標・両端共通）。
+        """
+        self.elements.append(Element(n1, n2, mat, sec, vref, offset))
         return len(self.elements) - 1
+
+    def add_shell(
+        self,
+        n1: int,
+        n2: int,
+        n3: int,
+        mat: Material,
+        thickness: float,
+    ) -> int:
+        """3節点フラットシェル要素（CST+DKT）を追加しインデックスを返す。"""
+        self.shells.append(ShellElement(n1, n2, n3, mat, thickness))
+        return len(self.shells) - 1
+
+    def add_quad_shell(
+        self,
+        n1: int,
+        n2: int,
+        n3: int,
+        n4: int,
+        mat: Material,
+        thickness: float,
+    ) -> int:
+        """4節点フラットシェル要素（Q4+MITC4）を追加しインデックスを返す。
+
+        節点 n1..n4 は反時計まわりの順で与える。
+        """
+        self.quad_shells.append(QuadShellElement(n1, n2, n3, n4, mat, thickness))
+        return len(self.quad_shells) - 1
 
     def fix(self, node: int, dofs: list[int] | None = None) -> None:
         """節点を固定する。dofs 省略時は全6自由度（完全固定）。"""

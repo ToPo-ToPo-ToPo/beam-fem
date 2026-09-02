@@ -17,12 +17,23 @@
 | [7. 可視化](07_visualization.md) | 変形図・断面力図・構造形態図 | `viz.py` |
 | [8. コード構成](08_code_structure.md) | モジュール構成と API 一覧 | パッケージ全体 |
 | [9. 構造生成と面荷重](09_builders_loads.md) | グリラージュ生成・面分布荷重の節点化 | `builders.py` |
+| [10. 三角形シェル要素](10_shell_element.md) | 三角形フラットシェル（CST 膜 + DKT 板曲げ・薄板）・ドリリング・梁連成・応力回収 | `shell3d.py`, `shell.py` |
+| [11. 四角形シェル MITC4](11_quad_shell_mitc4.md) | 四角形フラットシェル（Q4 膜 + MITC4 板曲げ・厚板〜薄板）・タイング・応力回収・最適化連成 | `shell_mitc4.py`, `shell.py` |
 
 ## 例題
 
 | 例 | 内容 |
 |---|---|
 | [portal_frame_2d](../examples/portal_frame_2d.py) | 2D 門型ラーメン（水平荷重・変形図） |
+| [plate_shell](../examples/plate_shell.py) | 単純支持正方形板のシェル解析（三角形 CST+DKT・Navier 解と比較） |
+| [plate_mitc4](../examples/plate_mitc4.py) | 単純支持板の MITC4 四角形シェル解析（薄板/厚板・せん断変形と収束） |
+| [ribbed_plate_quad_sizing](../examples/ribbed_plate_quad_sizing.py) | 四角形シェル板＋オフセットリブのサイジング最適化＋四角形シェル応力回収 |
+| [ribbed_plate_quad_discrete](../examples/ribbed_plate_quad_discrete.py) | 同・離散サイジング（規格リブ寸法・総当たり大域最適と貪欲法の一致） |
+| [circular_plate_shell](../examples/circular_plate_shell.py) | 円形膜（円板）に等分布荷重（周辺固定/単純支持・Kirchhoff 円板解と比較） |
+| [ribbed_plate_shell](../examples/ribbed_plate_shell.py) | 円形膜のリブ補強（シェル板＋梁リブの連成・剛体オフセットで T 形合成効果を比較） |
+| [ribbed_plate_shell_sizing](../examples/ribbed_plate_shell_sizing.py) | リブ補強板のサイジング最適化（シェル板＋オフセットリブ・たわみ制約下の質量最小化） |
+| [ribbed_plate_shell_discrete](../examples/ribbed_plate_shell_discrete.py) | リブ補強板の離散サイジング（規格リブ寸法カタログから選定・貪欲法） |
+| [ribbed_plate_layout_study](../examples/ribbed_plate_layout_study.py) | 境界条件×制約で最適リブ配置がどう変わるか（単純支持/固定・たわみ/応力の比較） |
 | [beam_forces](../examples/beam_forces.py) | 単純梁の内力・応力と項目指定出力 |
 | [spider_web_3d](../examples/spider_web_3d.py) | 円形蜘蛛の巣フレーム・面外グリラージュ |
 | [sizing_optimization](../examples/sizing_optimization.py) | 先細り片持ち梁の質量最小化（連続サイジング） |
@@ -46,6 +57,7 @@
 ## 実装済み機能の総覧
 
 - **解析**：3D Timoshenko 梁の静的線形解析（2D 面内骨組も）、内力・応力の回収
+- **シェル**：三角形（CST+DKT, 薄板）・四角形 MITC4（Q4+Mindlin, 厚板〜薄板）フラットシェル（各節点6自由度・梁と混在可）
 - **断面**：矩形・円・パイプ・箱型・I 形・自由断面
 - **可視化**：変形図・断面力図・構造形態図・トラス配置図
 - **サイジング最適化**：連続（解析的感度＋MMA）／離散（カタログ）／リブ本数（2段階）。
@@ -57,6 +69,7 @@
 ## 設計の指針
 
 - **要素は 3D Timoshenko 梁**（各節点6自由度）を基本とし、2D 面内骨組も同じデータ構造で扱う。
+  同じ節点6自由度の**三角形フラットシェル**（CST 膜 + DKT 板曲げ）を混在できる。
 - **疎行列**による組み立てと直接法ソルバで数千〜数万要素規模に対応。ソルバは差し替え可能。
 - 最適化の**感度は解析的**（サイジングは直接法、トポロジーは LP の双対性）。
   数値は有限差分・解析解・別ソルバ（SLSQP/linprog）で検証済み。

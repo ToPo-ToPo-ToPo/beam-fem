@@ -11,6 +11,12 @@
 ついて K (du/dx_i) = -(dK/dx_i) u を後退代入で解く（分解を再利用）。要素剛性の
 ∂k/∂(A,Iy,Iz,J) は解析式（element3d.local_stiffness_derivs）を用いる。設計変数が
 少なく制約が多い本問題に適した方式。
+
+梁に加えてシェル要素・オフセット梁にも対応する:
+- シェル要素は固定剛性として全体行列に加わる（板厚は設計変数ではない）。
+- オフセット梁は剛体腕 G を含めた変換 B=T·G を用い、剛性・感度・応力回収が
+  自動的に整合する（合成剛性 EA·e² が感度に反映される）。
+これによりリブ補強板（シェル板＋オフセットリブ）のサイジングが解ける。
 """
 
 from __future__ import annotations
@@ -21,14 +27,22 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-from ..assembly import assemble_load_vector, element_dof_map
+from ..assembly import (
+    assemble_load_vector,
+    element_dof_map,
+    quad_shell_dof_map,
+    shell_dof_map,
+)
 from ..element3d import (
     local_stiffness,
     local_stiffness_derivs,
+    rigid_offset_matrix,
     rotation_matrix,
     transformation_matrix,
 )
 from ..model import DOF_PER_NODE, Model
+from ..shell3d import shell_stiffness_global
+from ..shell_mitc4 import quad_shell_stiffness_global
 from .sections import ScaledSection
 
 
@@ -109,7 +123,10 @@ class SizingProblem:
         n = m.n_dof
         dof_maps = element_dof_map(m)
 
-        # 要素ごとの局所剛性・変換・微分を構築しつつ全体行列を組む
+        # 要素ごとの局所剛性・変換・微分を構築しつつ全体行列を組む。
+        # オフセット梁は剛体腕 G を含め、B = T @ G を「変換」として保持する
+        # （K_node = G^T (T^T k T) G = B^T k B）。以降の感度・応力回収は B を
+        # 用いるだけでオフセットに整合する。
         rows, cols, data = [], [], []
         elem_data = []
         for e, el in enumerate(m.elements):
@@ -118,13 +135,36 @@ class SizingProblem:
             klocal = local_stiffness(el.mat.E, el.mat.G, L, el.sec)
             R = rotation_matrix(p1, p2, el.vref)
             T = transformation_matrix(R)
-            kg = T.T @ klocal @ T
+            G = rigid_offset_matrix(el.offset)
+            B = T if G is None else T @ G
+            kg = B.T @ klocal @ B
             dofs = dof_maps[e]
             rr, cc = np.meshgrid(dofs, dofs, indexing="ij")
             rows.append(rr.ravel())
             cols.append(cc.ravel())
             data.append(kg.ravel())
-            elem_data.append(dict(L=L, klocal=klocal, T=T, dofs=dofs, mat=el.mat, sec=el.sec))
+            elem_data.append(dict(L=L, klocal=klocal, T=B, dofs=dofs, mat=el.mat, sec=el.sec))
+
+        # シェル要素（板）は固定剛性として全体行列に加える（設計変数ではない）
+        if m.shells:
+            for s, sdofs in zip(m.shells, shell_dof_map(m)):
+                ks = shell_stiffness_global(
+                    m.nodes[s.n1], m.nodes[s.n2], m.nodes[s.n3], s.mat, s.thickness
+                )
+                rr, cc = np.meshgrid(sdofs, sdofs, indexing="ij")
+                rows.append(rr.ravel())
+                cols.append(cc.ravel())
+                data.append(ks.ravel())
+        if m.quad_shells:
+            for s, sdofs in zip(m.quad_shells, quad_shell_dof_map(m)):
+                ks = quad_shell_stiffness_global(
+                    m.nodes[s.n1], m.nodes[s.n2], m.nodes[s.n3], m.nodes[s.n4],
+                    s.mat, s.thickness,
+                )
+                rr, cc = np.meshgrid(sdofs, sdofs, indexing="ij")
+                rows.append(rr.ravel())
+                cols.append(cc.ravel())
+                data.append(ks.ravel())
 
         K = sp.coo_matrix(
             (np.concatenate(data), (np.concatenate(rows), np.concatenate(cols))),

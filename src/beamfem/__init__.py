@@ -4,7 +4,10 @@
 """
 
 from .material import Material, Section
-from .model import Model, Element, UX, UY, UZ, RX, RY, RZ, DOF_PER_NODE
+from .model import (
+    Model, Element, ShellElement, QuadShellElement,
+    UX, UY, UZ, RX, RY, RZ, DOF_PER_NODE,
+)
 from .solver import solve_static, StaticResult
 from .forces import (
     recover_forces,
@@ -13,6 +16,7 @@ from .forces import (
     FORCE_COMPONENTS,
     STRESS_COMPONENTS,
 )
+from .shell import recover_shell_forces, ShellForceResults, ShellForces
 from .workspace import set_workspace, get_workspace
 from .builders import radial_grillage, lump_pressure, Grillage
 
@@ -23,8 +27,13 @@ __all__ = [
     "Section",
     "Model",
     "Element",
+    "ShellElement",
+    "QuadShellElement",
     "solve_static",
     "StaticResult",
+    "recover_shell_forces",
+    "ShellForceResults",
+    "ShellForces",
     "recover_forces",
     "ForceResults",
     "ElementForces",

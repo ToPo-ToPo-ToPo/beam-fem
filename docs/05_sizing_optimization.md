@@ -158,6 +158,43 @@ print(res.x, res.mass, res.sections, res.converged)
 補強として妥当な配置になる（`viz.plot_member_sizes` で形態を図示）。荷重の節点化と
 グリラージュ生成は [`builders.py`](../src/beamfem/builders.py)（[8 章](08_code_structure.md)）。
 
+### シェル板＋オフセットリブの連成サイジング
+
+[`examples/ribbed_plate_shell_sizing.py`](../examples/ribbed_plate_shell_sizing.py)：
+膜を曲げ剛性ゼロとみなす上記の近似に対し、**板そのものをフラットシェル**
+（[10 章](10_shell_element.md)）でモデル化し、リブを**剛体オフセット付き梁**
+（[1.5 節](01_fem_theory.md)）として連成させた本格的なリブ補強板のサイジング。
+
+`SizingProblem` は次を扱う:
+
+- **シェル要素**（3 節点 CST+DKT・4 節点 MITC4 の両方）は固定剛性として全体行列に
+  加わる（板厚は設計変数ではない）。四角形シェル板の例は
+  [`examples/ribbed_plate_quad_sizing.py`](../examples/ribbed_plate_quad_sizing.py)。
+- **オフセット梁**は剛体腕 $\mathbf{G}$ を含めて剛性・感度・応力回収を行う
+  （`B=T G` を変換として扱い、$EA e^2$ の合成効果を感度に反映）。解析的感度は
+  シェル・オフセットを含めても有限差分と一致する（`tests/test_optimize.py`）。
+
+リブの偏心 $e$ は最適化中は固定（取り付け深さを保ち、断面はその図心まわりで相似
+拡大する近似）。合成効果のため面内自由度 $u_x,u_y$ は内部で自由にし、外周で面内を
+保持する。結果は中央たわみ制約を活かしつつリブ総質量を大きく削減できる。
+
+### どこのリブが太くなるか —— 境界条件と制約で変わる
+
+「拘束部（外周）のリブが最も太くなる」とは限らない。最適配置は**境界条件**と
+**効かせる制約**の組合せで決まる。例
+[`examples/ribbed_plate_layout_study.py`](../examples/ribbed_plate_layout_study.py)
+は同じ円板を 3 条件で比較する:
+
+| 条件 | 最も太くなる位置 | 理由 |
+|---|---|---|
+| 単純支持 + たわみ制約 | **中間半径のリング** | 単純支持は縁のモーメントが 0・縁は既に拘束済み。中間リングが「追加の支持リング」として実効スパンを縮め、たわみ低減の効率が最大 |
+| 完全固定 + たわみ制約 | 外周側がやや太い | 固定で板自体が曲げを負担するためリブは軽量で済む |
+| 完全固定 + 応力制約 | **外周（固定端）** | 固定端で曲げモーメント最大。応力制約が縁の材料を要求（＝直感どおり） |
+
+たわみ制約は**感度（du/dx）が大きい場所**＝中間半径に、応力制約（固定端）は
+**モーメントが大きい場所**＝外周に材料を集める。直感的な「支持部が最太」は固定端
+＋応力設計で成り立つ。
+
 ## 5.8 離散サイジング（規格サイズ）
 
 実装：[`src/beamfem/optimize/discrete.py`](../src/beamfem/optimize/discrete.py)
@@ -190,8 +227,16 @@ res = solve_discrete_greedy(prob, catalog)             # 共有カタログ
 > - **貪欲解が総当たり（大域最適）と一致**し、関数評価回数は大幅に少ない
 > - 離散解は実行可能で、連続最適（下界）を下回らない
 >
-> 例 [`examples/ribbed_plate_discrete.py`](../examples/ribbed_plate_discrete.py)：規格リブ径
-> から選ぶリブ補強。168 万通りを貪欲探索が約 270 評価で解き、連続比 +数% に収まる。
+> - **シェル板（三角形・四角形）＋オフセットリブの連成**でも貪欲解が大域最適に一致（5.7 の拡張）
+
+例 [`examples/ribbed_plate_discrete.py`](../examples/ribbed_plate_discrete.py)：規格リブ径
+から選ぶリブ補強。168 万通りを貪欲探索が約 270 評価で解き、連続比 +数% に収まる。
+シェル板＋オフセットリブ版は
+[`examples/ribbed_plate_shell_discrete.py`](../examples/ribbed_plate_shell_discrete.py)：
+12 設計変数・7 サイズ（約 138 億通り）を貪欲法が約 1000 評価で解き、規格リブ高さ
+（15〜60 mm）を選定して連続比 +9% 程度に収まる。四角形 MITC4 シェル板版は
+[`examples/ribbed_plate_quad_discrete.py`](../examples/ribbed_plate_quad_discrete.py)
+（2 群・規格高さから選定、総当たり大域最適と貪欲解が一致）。
 
 ## 5.9 リブ本数の最適化（2 段階）
 

@@ -133,19 +133,57 @@ def transformation_matrix(R: np.ndarray) -> np.ndarray:
     return T
 
 
+def rigid_offset_matrix(offset: np.ndarray | None) -> np.ndarray | None:
+    """剛体腕で梁図心の自由度を節点（マスター）自由度へ結ぶ 12x12 変換 G。
+
+    両端共通のオフセット ``offset``（節点→梁図心の全体座標ベクトル r）に対し、
+    微小変形での剛体腕関係
+
+        u_beam = u_node + theta_node x r,   theta_beam = theta_node
+
+    を表す。これにより ``K_node = G^T K_beam G`` で節点剛性へ移すと、節点回転が
+    梁の軸伸縮を生む軸-曲げ連成（合成剛性 EA·e²）が現れる。offset が None の
+    ときは None を返す（変換不要）。
+    """
+    if offset is None:
+        return None
+    r = np.asarray(offset, dtype=float)
+    # 歪対称行列 [r]_x （[r]_x v = r x v）
+    S = np.array(
+        [[0.0, -r[2], r[1]], [r[2], 0.0, -r[0]], [-r[1], r[0], 0.0]]
+    )
+    # 1節点ぶん 6x6: u_beam = u_node - [r]_x theta_node, theta_beam = theta_node
+    g = np.eye(6)
+    g[0:3, 3:6] = -S
+    G = np.zeros((12, 12))
+    G[0:6, 0:6] = g
+    G[6:12, 6:12] = g
+    return G
+
+
 def element_stiffness_global(
     p1: np.ndarray,
     p2: np.ndarray,
     mat: Material,
     sec: Section,
     vref: np.ndarray | None = None,
+    offset: np.ndarray | None = None,
 ) -> np.ndarray:
-    """全体座標系での 12x12 要素剛性行列 K = T^T k T。"""
+    """全体座標系での 12x12 要素剛性行列 K = T^T k T。
+
+    offset を与えると剛体腕変換 G を介して梁図心剛性を節点へ移す
+    （K = G^T (T^T k T) G）。両端共通オフセットなので長さ・向きは不変で、
+    剛性そのものはオフセットの平行移動では変わらず、連成は G が担う。
+    """
     L = float(np.linalg.norm(p2 - p1))
     k_local = local_stiffness(mat.E, mat.G, L, sec)
     R = rotation_matrix(p1, p2, vref)
     T = transformation_matrix(R)
-    return T.T @ k_local @ T
+    K = T.T @ k_local @ T
+    G = rigid_offset_matrix(offset)
+    if G is not None:
+        K = G.T @ K @ G
+    return K
 
 
 def _fill_bending_derivs(out, dofs, sgn, I, A, c, L, E, wrt):

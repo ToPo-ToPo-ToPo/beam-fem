@@ -26,7 +26,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .element3d import local_stiffness, rotation_matrix, transformation_matrix
+from .element3d import (
+    local_stiffness,
+    rigid_offset_matrix,
+    rotation_matrix,
+    transformation_matrix,
+)
 from .model import Model
 from .solver import StaticResult
 
@@ -237,6 +242,10 @@ def recover_forces(model: Model, result: StaticResult) -> ForceResults:
         k = local_stiffness(e.mat.E, e.mat.G, L, e.sec)
         R = rotation_matrix(p1, p2, e.vref)
         T = transformation_matrix(R)
-        f_local = k @ (T @ result.u[dofs])
+        u_elem = result.u[dofs]
+        G = rigid_offset_matrix(e.offset)
+        if G is not None:
+            u_elem = G @ u_elem  # 節点変位 → 梁図心の変位（剛体腕）
+        f_local = k @ (T @ u_elem)
         efs.append(ElementForces(index=i, L=L, f_local=f_local, sec=e.sec))
     return ForceResults(model=model, elements=efs)
