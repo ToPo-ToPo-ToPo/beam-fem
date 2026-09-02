@@ -1,0 +1,8 @@
+numpy>=1.26
+scipy>=1.14
+matplotlib>=3.8
+qiskit>=2.1,<3
+qiskit-optimization>=0.7,<0.8
+
+# Optional: required only by --qaoa-backend aer
+qiskit-aer>=0.17,<0.18

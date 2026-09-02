@@ -1,0 +1,142 @@
+{
+  "original_dense": {
+    "score": 159.04491637994093,
+    "mass_kg": 159.04491637994093,
+    "feasible": true
+  },
+  "greedy_baseline": {
+    "score": 91.71915091622414,
+    "mass_kg": 91.71915091622414,
+    "feasible": true,
+    "violation": 0.0,
+    "states": [
+      1,
+      2,
+      1,
+      3,
+      3,
+      3,
+      2,
+      2,
+      2,
+      2,
+      0,
+      3,
+      0,
+      2,
+      3,
+      0
+    ]
+  },
+  "qubo": {
+    "size": 8,
+    "design_variables": 6,
+    "labels": [
+      "M12:NONE->S",
+      "M13:M->NONE",
+      "M0:S->M",
+      "M2:S->M",
+      "M6:M->L",
+      "M7:M->L",
+      "trust_slack_1",
+      "trust_slack_2"
+    ]
+  },
+  "results": [
+    {
+      "solver": "SA",
+      "qubo_energy": 0.0011004936240691654,
+      "fem_score": 88.70327940039327,
+      "mass_kg": 88.70327940039327,
+      "feasible": true,
+      "violation": 0.0,
+      "selected_moves": [
+        "M12:NONE->S",
+        "M13:M->NONE"
+      ],
+      "bits": [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "design_states": [
+        1,
+        2,
+        1,
+        3,
+        3,
+        3,
+        2,
+        2,
+        2,
+        2,
+        0,
+        3,
+        1,
+        0,
+        3,
+        0
+      ],
+      "runtime_s": 0.23707879197900183,
+      "metadata": {
+        "seed": 123,
+        "reads": 32,
+        "sweeps": 1000
+      }
+    },
+    {
+      "solver": "QAOA",
+      "qubo_energy": 0.0011004936240691654,
+      "fem_score": 88.70327940039327,
+      "mass_kg": 88.70327940039327,
+      "feasible": true,
+      "violation": 0.0,
+      "selected_moves": [
+        "M12:NONE->S",
+        "M13:M->NONE"
+      ],
+      "bits": [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "design_states": [
+        1,
+        2,
+        1,
+        3,
+        3,
+        3,
+        2,
+        2,
+        2,
+        2,
+        0,
+        3,
+        1,
+        0,
+        3,
+        0
+      ],
+      "runtime_s": 0.20459591699182056,
+      "metadata": {
+        "seed": 123,
+        "shots": 1024,
+        "reps": 1,
+        "maxiter": 60,
+        "selected_probability": 0.0107421875,
+        "sample_count": 132
+      }
+    }
+  ]
+}

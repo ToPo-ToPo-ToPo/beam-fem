@@ -148,6 +148,7 @@ mz_max = forces[3].max_abs("Mz")     # 要素3の最大曲げ
 
 ### 例題一覧
 
+- [`experiments/quantum_truss_qaoa/`](experiments/quantum_truss_qaoa/README.md) — 離散トラス最適化のQUBO Master＋古典FEMをSAとQiskit QAOAで比較（過去のMILP・SA版も収録）
 - [`examples/portal_frame_2d.py`](examples/portal_frame_2d.py) — 2D 門型ラーメン（水平荷重・変形図）
 - [`examples/plate_shell.py`](examples/plate_shell.py) — 単純支持正方形板のシェル解析（三角形 CST+DKT・Navier 解と比較）
 - [`examples/plate_mitc4.py`](examples/plate_mitc4.py) — 単純支持板の MITC4 四角形シェル解析（薄板/厚板・せん断変形と収束）
