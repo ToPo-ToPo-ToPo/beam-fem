@@ -1,11 +1,11 @@
 {
   "evidence_schema_version": "1.0",
-  "created_at_utc": "2026-09-02T05:03:36.209395+00:00",
+  "created_at_utc": "2026-09-02T05:10:07.591565+00:00",
   "environment": {
     "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
     "python": "3.13.9",
     "beamfem": "1.0.0rc2",
-    "git_commit": "c0e9f6e61709e90be2b46904e82a91f96c7d752c"
+    "git_commit": "6d2c3db807c92fdac6154d449cf1c753c2b8edf6"
   },
   "external_solver": {
     "name": "OpenSeesPy",

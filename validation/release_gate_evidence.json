@@ -1,10 +1,10 @@
 {
   "evidence_schema_version": "1.0",
-  "created_at_utc": "2026-09-02T05:03:36.310681+00:00",
+  "created_at_utc": "2026-09-02T05:10:52.535853+00:00",
   "environment": {
     "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
     "python": "3.13.9",
-    "git_commit": "c0e9f6e61709e90be2b46904e82a91f96c7d752c"
+    "git_commit": "6d2c3db807c92fdac6154d449cf1c753c2b8edf6"
   },
   "automated_checks": {
     "reference_cases": true,
@@ -51,8 +51,8 @@
   "artifacts": {
     "reference": {
       "path": "validation/reference_evidence.json",
-      "sha256": "dffb64338d5788fc8e38c1afeb41177a419689e5940307d1dbb16d93ceabd6f7",
-      "size_bytes": 3840
+      "sha256": "1d531b1defb1ff17755c576a6b111974dccd1f06e97281aa5adc7f9ceea8a95e",
+      "size_bytes": 6581
     },
     "exact_milp": {
       "path": "validation/exact_milp_micro_evidence.json",
@@ -91,18 +91,18 @@
     },
     "code_check_reference": {
       "path": "validation/code_check_reference_evidence.json",
-      "sha256": "7227bd83f1735c5a794aee1fe7a976ead91ea7de1f7afdcf1b5131d9e0b10838",
+      "sha256": "8526f285734530608a9edd2a7291bc85d518e3c072afdc13428c961bfa0ef335",
       "size_bytes": 1462
     },
     "opensees_crosscheck": {
       "path": "validation/opensees_crosscheck_evidence.json",
-      "sha256": "caca6cfc20de528aa1ada9c77e74deafb0dac08080d93fd4060b99a33d89de52",
+      "sha256": "e118bb31137b5c656e00bb5480082fbe58035f85e30d72d2601bb3b5a922800e",
       "size_bytes": 981
     },
     "endurance": {
       "path": "validation/endurance_evidence.json",
-      "sha256": "bf53a14130aa27566d993a948068a6e707ef19baa5ba933e9db4bf4894afd1ea",
-      "size_bytes": 942
+      "sha256": "817b07c0997d273f51c5f36510e82e7eeadba2efea830f09c6fc9a1e70e6df59",
+      "size_bytes": 941
     },
     "dependency_lock": {
       "path": "requirements-release.lock",

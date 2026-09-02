@@ -1,15 +1,15 @@
 {
   "audit": {
     "beamfem_version": "1.0.0rc2",
-    "created_at_utc": "2026-09-02T04:14:51.777596+00:00",
-    "git_commit": "f747c6684dcc12d79d6b57b53610d644f63cfb93",
+    "created_at_utc": "2026-09-02T05:10:07.580765+00:00",
+    "git_commit": "6d2c3db807c92fdac6154d449cf1c753c2b8edf6",
     "git_dirty": true,
     "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
     "python_version": "3.13.9",
     "seed": null,
     "solver": "closed-form-reference-vv",
     "solver_settings": {
-      "fixture_count": 3,
+      "fixture_count": 5,
       "units": "SI"
     },
     "warnings": []
@@ -45,6 +45,54 @@
         "axial_force_relative_error": 1.6077746776921856e-16,
         "displacement_relative_error": 0.0,
         "equilibrium_residual": 0.0,
+        "rotation_invariance_relative_error": null
+      },
+      "passed": true
+    },
+    {
+      "actual": {
+        "axial_forces": [
+          10000.000000000011,
+          10000.000000000011,
+          10000.00000000001,
+          -10000.000000000002,
+          -14142.135623730963,
+          -14142.135623730963,
+          -8.673617379884035e-12,
+          1.734723475976807e-11,
+          -8.673617379884034e-12
+        ],
+        "displacement": [
+          0.0002500000000000004,
+          -0.0006035533905932745,
+          0.0
+        ]
+      },
+      "case_id": "pratt-2d-method-of-joints-v1",
+      "description": "Two-panel Pratt truss checked by joint equilibrium and virtual work",
+      "expected": {
+        "axial_forces": [
+          10000.0,
+          10000.0,
+          10000.0,
+          -10000.0,
+          -14142.13562373095,
+          -14142.13562373095,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "displacement": [
+          0.00025,
+          -0.0006035533905932738,
+          0.0
+        ]
+      },
+      "expected_formula": "method of joints for N; unit-load virtual work for displacement",
+      "metrics": {
+        "axial_force_relative_error": 1.1725503352507582e-15,
+        "displacement_relative_error": 1.1528122531714201e-15,
+        "equilibrium_residual": 7.546525838474563e-16,
         "rotation_invariance_relative_error": null
       },
       "passed": true
@@ -120,13 +168,59 @@
         "rotation_invariance_relative_error": null
       },
       "passed": true
+    },
+    {
+      "actual": {
+        "axial_forces": [
+          -14142.13562373095,
+          0.0,
+          5.366526958391809e-12,
+          -14142.135623730954,
+          10000.000000000018,
+          10000.00000000001,
+          -10000.00000000001
+        ],
+        "displacement": [
+          0.00025000000000000044,
+          -0.0008535533905932745,
+          0.0
+        ]
+      },
+      "case_id": "warren-2d-method-of-joints-v1",
+      "description": "Two-panel Warren truss checked by joint equilibrium and virtual work",
+      "expected": {
+        "axial_forces": [
+          -14142.13562373095,
+          0.0,
+          0.0,
+          -14142.13562373095,
+          10000.0,
+          10000.0,
+          -10000.0
+        ],
+        "displacement": [
+          0.00025,
+          -0.0008535533905932738,
+          0.0
+        ]
+      },
+      "expected_formula": "method of joints for N; unit-load virtual work for displacement",
+      "metrics": {
+        "axial_force_relative_error": 8.769613682058317e-16,
+        "displacement_relative_error": 8.790408279977404e-16,
+        "equilibrium_residual": 9.687195490215573e-16,
+        "rotation_invariance_relative_error": null
+      },
+      "passed": true
     }
   ],
   "evidence_schema_version": "1.0",
   "fixture_sha256": {
     "mixed_frame_truss.json": "07fdb0ff8028cbdabee46096d4979ff61fdcb1e9e3ea6dceed42d6b18bbbb1f3",
+    "pratt_2d.json": "ddad51a88fbf245f67b382a83ddf80d31e4a190dcdaf7387437f7324842354de",
     "triangle_2d.json": "716ea491a8006441d89a11b526352954250e207482d11f9c51fe5a610f9d6fc7",
-    "tripod_3d.json": "fa627fb374ef684a8bea95bcbbec338395e0d27dc52e684db39eeb66054d0e38"
+    "tripod_3d.json": "fa627fb374ef684a8bea95bcbbec338395e0d27dc52e684db39eeb66054d0e38",
+    "warren_2d.json": "328340e5662707fd6baff061f6655d089ddc4aebab3b7d5a7dae9dec8d0b6d7a"
   },
   "method": "closed_form_reference_cases",
   "passed": true,

@@ -1,23 +1,23 @@
 {
   "evidence_schema_version": "1.0",
-  "created_at_utc": "2026-09-02T05:01:51.874002+00:00",
+  "created_at_utc": "2026-09-02T05:10:37.841340+00:00",
   "environment": {
     "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
     "python": "3.13.9",
-    "git_commit": "c0e9f6e61709e90be2b46904e82a91f96c7d752c"
+    "git_commit": "6d2c3db807c92fdac6154d449cf1c753c2b8edf6"
   },
   "case": "large (201 candidate members)",
   "minimum_seconds": 30.0,
-  "elapsed_seconds": 30.039236875018105,
+  "elapsed_seconds": 30.02278583298903,
   "minimum_evaluations": 100,
-  "completed_evaluations": 318,
-  "unique_designs": 318,
-  "evaluations_per_second": 10.586154412746158,
+  "completed_evaluations": 324,
+  "unique_designs": 324,
+  "evaluations_per_second": 10.791803325725652,
   "memory_limit_mb": 1024.0,
-  "tracemalloc_current_bytes": 383572290,
-  "tracemalloc_peak_bytes": 383747426,
-  "rss_start_bytes": 80543744,
-  "rss_peak_bytes": 816955392,
+  "tracemalloc_current_bytes": 390805948,
+  "tracemalloc_peak_bytes": 390981084,
+  "rss_start_bytes": 81035264,
+  "rss_peak_bytes": 827293696,
   "checks": {
     "minimum_duration_reached": true,
     "minimum_evaluations_reached": true,
