@@ -25,6 +25,7 @@
 | [15. 製品要件・リリース条件](15_product_requirements.md) | 適用範囲、精度・性能基準、RC判定 | `validation/` |
 | [16. 量子バックエンド検証](16_quantum_validation.md) | Statevector/Aer/実機差替え、証拠要件 | `optimize/backends/qaoa.py` |
 | [17. リリース運用](17_release_operations.md) | 成果物保持、完全性検証、ロールバック | `io/release_archive.py` |
+| [18. 開発計画の実施状況](18_development_plan_status.md) | フェーズ0〜8の完了・一部完了・未実装、弾塑性ロードマップ | 実装・検証証跡全体 |
 
 ## 例題
 
