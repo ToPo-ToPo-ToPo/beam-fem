@@ -13,14 +13,16 @@ from typing import Any, Mapping, Sequence
 
 
 def _package_version() -> str:
+    # Prefer the imported source package. Editable development trees may retain
+    # stale egg-info from an older build even though the running code is newer.
     try:
-        return version("beamfem")
-    except PackageNotFoundError:
-        try:
-            from beamfem import __version__
+        from beamfem import __version__
 
-            return __version__
-        except (ImportError, AttributeError):
+        return __version__
+    except (ImportError, AttributeError):
+        try:
+            return version("beamfem")
+        except PackageNotFoundError:
             return "unknown"
 
 

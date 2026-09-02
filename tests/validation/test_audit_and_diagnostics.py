@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from beamfem.validation import Severity, build_audit_metadata, diagnose_problem_spec
 from benchmarks.quantum_truss.generate_cases import generate_case
+import beamfem
 
 
 def test_audit_captures_reproducible_settings(tmp_path):
@@ -21,6 +22,7 @@ def test_audit_captures_reproducible_settings(tmp_path):
     assert audit.solver_settings == {"sweeps": 100}
     assert audit.git_commit is None
     assert audit.warnings == ("example",)
+    assert audit.beamfem_version == beamfem.__version__
 
 
 def test_diagnostics_reports_duplicates_isolation_and_support_warning():
