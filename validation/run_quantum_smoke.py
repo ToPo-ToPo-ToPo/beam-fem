@@ -4,14 +4,23 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import platform
+import subprocess
 
 import numpy as np
 
 from beamfem.optimize.backends import QAOABackend
 from beamfem.optimize.qubo import QUBOModel
+
+
+def _git_commit() -> str | None:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
 
 
 def run(seed: int = 11, shots: int = 256, maxiter: int = 10) -> dict:
@@ -40,6 +49,10 @@ def run(seed: int = 11, shots: int = 256, maxiter: int = 10) -> dict:
         np.array([-1.0, -0.5]),
         np.array([[0.0, 0.25], [0.0, 0.0]]),
     )
+    model_payload = json.dumps(
+        {"linear": model.linear.tolist(), "quadratic": model.quadratic.tolist()},
+        sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
     solution = QAOABackend(
         sampler=sampler,
         reps=1,
@@ -59,7 +72,9 @@ def run(seed: int = 11, shots: int = 256, maxiter: int = 10) -> dict:
             "qiskit": qiskit.__version__,
             "qiskit_aer": qiskit_aer.__version__,
             "qiskit_optimization": qiskit_optimization.__version__,
+            "git_commit": _git_commit(),
         },
+        "input_sha256": hashlib.sha256(model_payload).hexdigest(),
         "execution": "local_noisy_simulator",
         "hardware_execution_performed": False,
         "hardware_reason": "No provider credentials or paid hardware authorization supplied.",

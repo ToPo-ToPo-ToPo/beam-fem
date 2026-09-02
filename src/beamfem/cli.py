@@ -37,11 +37,19 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--backend", choices=("exact", "greedy", "sa", "qaoa"), default="greedy")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--time-limit", type=float)
+    parser.add_argument(
+        "--memory-limit-mb", type=float,
+        help="stop between optimization steps when process peak RSS reaches this limit",
+    )
     parser.add_argument("--max-evaluations", type=int)
     parser.add_argument("--max-iterations", type=int, default=20)
     parser.add_argument("--exact-max-combinations", type=int, default=200_000)
     parser.add_argument("--penalty", type=float, default=1.0e6)
     parser.add_argument("--candidates", type=int, default=8)
+    parser.add_argument(
+        "--parallel-workers", type=int, default=1,
+        help="isolated FEM worker processes for local-QUBO candidate evaluation",
+    )
     parser.add_argument("--trust-radius", type=int, default=2)
     parser.add_argument("--sa-sweeps", type=int, default=1500)
     parser.add_argument("--sa-restarts", type=int, default=8)
@@ -70,11 +78,15 @@ def _solver_settings(args) -> dict:
 
 def _sequential(problem, args, quantum: bool, *, use_checkpoint: bool = True):
     radius = max(1, args.trust_radius)
+    workers = max(1, args.parallel_workers)
     builder = LocalQUBOBuilder(
         problem,
         max_candidates=args.candidates,
         trust_region=TrustRegion(radius=radius, minimum=1, maximum=max(8, radius)),
         penalty=AdaptivePenalty(value=args.penalty),
+        parallel_workers=workers,
+        parallel_backend="process",
+        persistent_workers=workers > 1,
     )
     if quantum:
         solver = QAOABackend(
@@ -159,19 +171,30 @@ def main(argv=None) -> int:
         max_evaluations=args.max_evaluations,
         max_iterations=args.max_iterations,
         time_limit=args.time_limit,
+        memory_limit_mb=args.memory_limit_mb,
     )
     warnings = list(preflight.warnings)
     selected_backend = args.backend
+
+    def solve_and_close(backend):
+        try:
+            return backend.solve(built.problem, limits=limits)
+        finally:
+            builder = getattr(backend, "builder", None)
+            close = getattr(builder, "close", None)
+            if close is not None:
+                close()
+
     try:
         try:
-            result = _backend(built.problem, args).solve(built.problem, limits=limits)
+            result = solve_and_close(_backend(built.problem, args))
         except (QiskitNotInstalledError, RuntimeError) as exc:
             fallback = _fallback(built.problem, args) if args.backend == "qaoa" else None
             if fallback is None:
                 raise
             warnings.append(f"QAOA failed; used {args.fallback} fallback: {exc}")
             selected_backend = args.fallback
-            result = fallback.solve(built.problem, limits=limits)
+            result = solve_and_close(fallback)
     except Exception as exc:
         if manifest is not None:
             manifest = manifest.advance(

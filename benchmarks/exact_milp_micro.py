@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import platform
 from pathlib import Path
@@ -82,11 +83,16 @@ def collect_evidence() -> dict[str, object]:
         "milp_zero_gap": bool(abs(float(milp.solver_metadata["mip_gap"])) <= 1e-12),
         "off_index_preserved": exact_choices == [2, 2] and milp_choices == [2, 2],
     }
+    problem_payload = json.dumps({
+        "members": [[0, 1], [1, 2]], "areas": [0.0, 1.0e-4, 2.0e-4],
+        "loads": [8000.0, -8000.0], "allowable": 60e6,
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return {
         "schema_version": 1,
         "environment": {"machine": platform.machine(), "platform": platform.platform(),
                         "python": platform.python_version(), "git_commit": _git_commit()},
         "problem": {"members": 2, "states_per_member": 3, "combinations": 9,
+                    "input_sha256": hashlib.sha256(problem_payload).hexdigest(),
                     "section_index_map": {"0": "OFF", "1": "S", "2": "L"},
                     "load_cases": ["tension", "compression"],
                     "constraints": ["axial_stress"],

@@ -16,6 +16,7 @@ def test_cli_runs_common_sa_pipeline_and_writes_audited_result(tmp_path):
         "--seed", "9",
         "--max-iterations", "1",
         "--candidates", "4",
+        "--parallel-workers", "2",
         "--sa-sweeps", "40",
         "--sa-restarts", "2",
     ])

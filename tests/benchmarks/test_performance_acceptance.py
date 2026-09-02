@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from benchmarks.performance_acceptance import factorization_evidence
+from benchmarks.performance_acceptance import factorization_evidence, parallel_candidate_evidence
 
 
 def test_factorization_runner_reports_raw_samples_median_and_speedup():
@@ -12,6 +12,14 @@ def test_factorization_runner_reports_raw_samples_median_and_speedup():
     assert evidence["speedup"] == (
         evidence["baseline_median_seconds"] / evidence["reuse_median_seconds"]
     )
+
+
+def test_parallel_runner_uses_medium_process_workers_and_checks_exact_results():
+    evidence = parallel_candidate_evidence(repeats=1, workers=2, target_speedup=0.0)
+    assert evidence["case"] == "medium"
+    assert evidence["execution_model"] == "persistent isolated worker processes"
+    assert evidence["results_bitwise_equal"] is True
+    assert evidence["threshold_met"] is True
 
 
 def test_committed_performance_evidence_does_not_promote_failed_gates():
@@ -26,6 +34,7 @@ def test_committed_performance_evidence_does_not_promote_failed_gates():
         and gates["large_candidate_feasible"]
     )
     assert gates["all_solution_quality_gates_passed"] is expected
+    assert expected is True
     required = evidence["required_performance_gates"]
     assert required["all_required_performance_gates_passed"] is all(
         value for key, value in required.items()

@@ -14,6 +14,8 @@ class SectionOption:
 
     ``section=None`` は部材を配置しない OFF 状態を表す。強度は Pa、密度は
     ``material.rho`` [kg/m3] とし、構造解析本体と同じSI単位を用いる。
+    ``slenderness_ratio`` は採用する規則に従って入力側で算定した無次元値であり、
+    ライブラリが断面形状や規則を推測するものではない。
     """
 
     name: str
@@ -23,6 +25,7 @@ class SectionOption:
     compressive_strength: float | None = None
     cost_per_kg: float = 0.0
     carbon_per_kg: float = 0.0
+    slenderness_ratio: float | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -32,6 +35,7 @@ class SectionOption:
         for label, value in (
             ("tensile_strength", self.tensile_strength),
             ("compressive_strength", self.compressive_strength),
+            ("slenderness_ratio", self.slenderness_ratio),
         ):
             if value is not None and value <= 0.0:
                 raise ValueError(f"{label} は正値でなければなりません")

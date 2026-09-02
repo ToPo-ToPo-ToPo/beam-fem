@@ -10,11 +10,19 @@ from ..material import Material, Section
 from ..model import Model, UX, UY, UZ, RX, RY, RZ
 from ..optimize.catalogs import SectionCatalog, SectionOption
 from ..optimize.constraints import (
+    ActiveMemberCount,
+    Connectivity,
     DisplacementLimit,
     EulerBucklingLimit,
     ForbiddenMembers,
+    MaxSectionTypes,
+    MemberLengthRange,
+    RelativeDisplacementLimit,
     RequiredMembers,
+    SameSectionGroup,
+    SectionSlendernessLimit,
     StressLimit,
+    SymmetryPairs,
 )
 from ..optimize.objectives import MassObjective, WeightedImpactObjective
 from ..optimize.problem import (
@@ -58,7 +66,7 @@ def _section(entry: Mapping[str, Any]) -> Section:
 
 
 def build_discrete_problem(spec: ProblemSpec | Mapping[str, Any]) -> BuiltProblem:
-    """Build a SI ``DiscreteStructuralProblem`` from a validated v1 document.
+    """Build a SI ``DiscreteStructuralProblem`` from a validated portable document.
 
     ``member_type`` は ``frame``（既定、後方互換）または ``truss``。OFF状態は
     portable catalogに無くても各カタログの先頭へ追加する。
@@ -100,6 +108,8 @@ def build_discrete_problem(spec: ProblemSpec | Mapping[str, Any]) -> BuiltProble
                     compressive_strength=float(entry.get(
                         "compression_allowable", mat_data.get("compression_allowable")
                     )) if entry.get("compression_allowable", mat_data.get("compression_allowable")) is not None else None,
+                    slenderness_ratio=float(entry["slenderness"])
+                    if entry.get("slenderness") is not None else None,
                     cost_per_kg=float(entry.get("cost_per_kg", mat_data.get("cost_per_kg", 0.0))),
                     carbon_per_kg=float(entry.get("carbon_per_kg", mat_data.get("carbon_per_kg", 0.0))),
                 )
@@ -176,10 +186,47 @@ def build_discrete_problem(spec: ProblemSpec | Mapping[str, Any]) -> BuiltProble
                         combinations=combinations_filter,
                         constraint_id=f"{cid}:{node_name}:{dof_name}",
                     ))
+        elif kind == "relative_displacement":
+            constraints.append(RelativeDisplacementLimit(
+                node_a=node_ids[item["node_a"]], node_b=node_ids[item["node_b"]],
+                dof=DOF_NAMES[item["dof"]], maximum=float(item["limit"]),
+                combinations=combinations_filter, constraint_id=cid,
+            ))
         elif kind == "required_members":
             constraints.append(RequiredMembers(members or (), cid))
         elif kind == "forbidden_members":
             constraints.append(ForbiddenMembers(members or (), cid))
+        elif kind == "same_section_group":
+            constraints.append(SameSectionGroup(members or (), cid))
+        elif kind == "max_section_types":
+            constraints.append(MaxSectionTypes(
+                maximum=int(item["maximum"]), members=members,
+                include_off=bool(item.get("include_off", False)), constraint_id=cid,
+            ))
+        elif kind == "active_member_count":
+            constraints.append(ActiveMemberCount(
+                minimum=int(item.get("minimum", 0)),
+                maximum=None if item.get("maximum") is None else int(item["maximum"]),
+                members=members, constraint_id=cid,
+            ))
+        elif kind == "symmetry_pairs":
+            constraints.append(SymmetryPairs(
+                ((member_ids[a], member_ids[b]) for a, b in item["pairs"]), cid,
+            ))
+        elif kind == "connectivity":
+            constraints.append(Connectivity(
+                (node_ids[name] for name in item["nodes"]), cid,
+            ))
+        elif kind == "member_length_range":
+            constraints.append(MemberLengthRange(
+                minimum=float(item.get("minimum", 0.0)),
+                maximum=float(item.get("maximum", math.inf)),
+                members=members, constraint_id=cid,
+            ))
+        elif kind == "section_slenderness":
+            constraints.append(SectionSlendernessLimit(
+                maximum=float(item["maximum"]), members=members, constraint_id=cid,
+            ))
         else:
             raise ValueError(f"unsupported constraint type: {kind!r}")
 

@@ -16,6 +16,10 @@ from .run_manifest import (
     write_run_manifest,
 )
 from .html_report import DISCLAIMER, render_design_report, write_design_report
+from .release_archive import (
+    ARCHIVE_MANIFEST, create_release_archive, restore_release_archive,
+    verify_release_archive,
+)
 
 __all__ = [
     "CURRENT_SCHEMA_VERSION",
@@ -43,4 +47,8 @@ __all__ = [
     "DISCLAIMER",
     "render_design_report",
     "write_design_report",
+    "ARCHIVE_MANIFEST",
+    "create_release_archive",
+    "restore_release_archive",
+    "verify_release_archive",
 ]

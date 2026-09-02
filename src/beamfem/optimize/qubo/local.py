@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import replace
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from math import inf
+import inspect
 from time import perf_counter
 from typing import Any, Sequence
 
@@ -16,12 +17,40 @@ from .penalties import AdaptivePenalty
 from .trust_region import TrustRegion
 
 
+_PROCESS_PROBLEM: Any | None = None
+_PROCESS_SUPPORTS_CACHE_CONTROL = False
+
+
+def _initialize_process_problem(problem: Any) -> None:
+    """Install one private problem copy per worker (also works with spawn)."""
+    global _PROCESS_PROBLEM, _PROCESS_SUPPORTS_CACHE_CONTROL
+    _PROCESS_PROBLEM = problem
+    _PROCESS_SUPPORTS_CACHE_CONTROL = "use_cache" in inspect.signature(problem.evaluate).parameters
+
+
+def _evaluate_process_design(design: Any) -> Any:
+    if _PROCESS_PROBLEM is None:  # pragma: no cover - defensive worker failure
+        raise RuntimeError("parallel FEM worker was not initialized")
+    if _PROCESS_SUPPORTS_CACHE_CONTROL:
+        evaluation = _PROCESS_PROBLEM.evaluate(design, use_cache=False)
+    else:
+        evaluation = _PROCESS_PROBLEM.evaluate(design)
+    return _EvaluationSummary(_objective(evaluation), _violation(evaluation))
+
+
 @dataclass(frozen=True)
 class DesignMove:
     member: int
     state: int
     single_merit: float
     predicted_improvement: float
+
+
+@dataclass(frozen=True)
+class _EvaluationSummary:
+    """Small process-transfer object containing all QUBO-builder inputs."""
+    objective: float
+    violation: float
 
 
 def _values(design: Any) -> tuple[int, ...]:
@@ -54,6 +83,8 @@ def _objective(evaluation: Any) -> float:
 
 
 def _violation(evaluation: Any) -> float:
+    if isinstance(evaluation, _EvaluationSummary):
+        return evaluation.violation
     constraints = getattr(evaluation, "constraints", ())
     total = 0.0
     for item in constraints:
@@ -76,7 +107,8 @@ class LocalQUBOBuilder:
     def __init__(self, problem: Any, domains: Sequence[Sequence[int]] | None = None,
                  max_candidates: int = 8, trust_region: TrustRegion | None = None,
                  penalty: AdaptivePenalty | None = None, parallel_workers: int = 1,
-                 parallel_safe: bool = False):
+                 parallel_safe: bool = False, parallel_backend: str = "thread",
+                 persistent_workers: bool = False):
         if max_candidates < 1:
             raise ValueError("max_candidates must be positive")
         self.problem, self.domains = problem, domains
@@ -85,15 +117,52 @@ class LocalQUBOBuilder:
         self.penalty = penalty or AdaptivePenalty(value=10.0)
         self.parallel_workers = max(1, int(parallel_workers))
         self.parallel_safe = bool(parallel_safe)
-        if self.parallel_workers > 1 and not self.parallel_safe and not hasattr(problem, "evaluate_many"):
+        if parallel_backend not in {"thread", "process"}:
+            raise ValueError("parallel_backend must be 'thread' or 'process'")
+        self.parallel_backend = parallel_backend
+        self.persistent_workers = bool(persistent_workers)
+        self._executor: ProcessPoolExecutor | ThreadPoolExecutor | None = None
+        if (self.parallel_workers > 1 and self.parallel_backend == "thread"
+                and not self.parallel_safe and not hasattr(problem, "evaluate_many")):
             raise ValueError("parallel evaluation requires parallel_safe=True or problem.evaluate_many")
         self.last_metadata: dict[str, Any] = {}
+
+    def _create_executor(self):
+        if self.parallel_backend == "process":
+            return ProcessPoolExecutor(
+                max_workers=self.parallel_workers,
+                initializer=_initialize_process_problem,
+                initargs=(self.problem,),
+            )
+        return ThreadPoolExecutor(max_workers=self.parallel_workers)
+
+    def close(self) -> None:
+        """Release persistent worker resources; safe to call repeatedly."""
+        if self._executor is not None:
+            self._executor.shutdown(wait=True)
+            self._executor = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
 
     @staticmethod
     def _merit(evaluation: Any, penalty: float) -> float:
         return _objective(evaluation) + penalty * _violation(evaluation)
 
     def build(self, initial_design: Any) -> tuple[QUBOModel, Any]:
+        if self.parallel_workers <= 1 or hasattr(self.problem, "evaluate_many"):
+            return self._build(initial_design, None)
+        if self.persistent_workers:
+            if self._executor is None:
+                self._executor = self._create_executor()
+            return self._build(initial_design, self._executor)
+        with self._create_executor() as executor:
+            return self._build(initial_design, executor)
+
+    def _build(self, initial_design: Any, executor: Any | None) -> tuple[QUBOModel, Any]:
         build_started = perf_counter()
         base = _values(initial_design)
         if self.domains is not None:
@@ -116,12 +185,14 @@ class LocalQUBOBuilder:
                 batch = getattr(self.problem, "evaluate_many", None)
                 if batch is not None:
                     results = batch([_make(initial_design, values) for values in missing])
-                elif self.parallel_workers > 1:
-                    with ThreadPoolExecutor(max_workers=self.parallel_workers) as executor:
-                        results = list(executor.map(
-                            self.problem.evaluate,
-                            [_make(initial_design, values) for values in missing],
-                        ))
+                elif executor is not None:
+                    evaluator = (_evaluate_process_design
+                                 if self.parallel_backend == "process"
+                                 else self.problem.evaluate)
+                    results = list(executor.map(
+                        evaluator,
+                        [_make(initial_design, values) for values in missing],
+                    ))
                 else:
                     results = [self.problem.evaluate(_make(initial_design, values)) for values in missing]
                 cache_values.update(zip(missing, results))
@@ -200,6 +271,8 @@ class LocalQUBOBuilder:
             "pair_evaluations": len(pair_specs), "fem_evaluations": len(cache_values),
             "cardinality_penalty": cardinality_penalty,
             "parallel_workers": self.parallel_workers,
+            "parallel_backend": self.parallel_backend,
+            "persistent_workers": self.persistent_workers,
             "screening_seconds": screening_seconds, "pair_seconds": pair_seconds,
             "build_seconds": perf_counter() - build_started,
             "base_bits": tuple([0] * n_actions + [

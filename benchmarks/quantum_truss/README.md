@@ -4,6 +4,11 @@ This directory provides deterministic `small`, `medium`, and `large` planar
 truss inputs. They use the public versioned interchange schema and are not tied
 to a specific FEM, MILP, SA, or QAOA implementation.
 
+All three sizes retain a 4.5 m total span and the same total gravity/wind load;
+the larger cases refine the bay discretization. Consequently the scaling study
+increases FEM and optimization work without silently turning the catalog's
+known-feasible maximum-section anchor into a physically impossible design.
+
 Generate an input document:
 
 ```bash

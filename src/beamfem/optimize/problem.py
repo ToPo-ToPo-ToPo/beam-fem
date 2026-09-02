@@ -47,6 +47,10 @@ class LoadCase:
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "loads", MappingProxyType(dict(loads)))
 
+    def __reduce__(self):
+        """Rebuild the read-only mapping when sent to a worker process."""
+        return type(self), (self.name, dict(self.loads))
+
 
 @dataclass(frozen=True)
 class LoadCombination:
@@ -58,6 +62,10 @@ class LoadCombination:
     def __init__(self, name: str, factors: Mapping[str, float]):
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "factors", MappingProxyType(dict(factors)))
+
+    def __reduce__(self):
+        """Rebuild the read-only mapping when sent to a worker process."""
+        return type(self), (self.name, dict(self.factors))
 
 
 @dataclass
@@ -143,3 +151,13 @@ class DiscreteStructuralProblem:
     def clear_cache(self) -> None:
         if self._evaluator is not None:
             self._evaluator.clear_cache()
+
+    def __getstate__(self):
+        """Serialize the problem definition without process-local FEM caches.
+
+        Sparse LU objects are intentionally process-local and cannot be safely
+        pickled.  A worker lazily constructs its own evaluator on first use.
+        """
+        state = self.__dict__.copy()
+        state["_evaluator"] = None
+        return state

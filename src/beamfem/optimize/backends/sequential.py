@@ -12,7 +12,7 @@ from typing import Any
 
 from ..qubo.local import LocalQUBOBuilder
 from .base import (
-    HistoryEntry, OptimizationResult, SolverLimits, design_values, evaluate_problem,
+    HistoryEntry, OptimizationResult, SolverLimits, StopController, design_values, evaluate_problem,
     evaluation_constraints, evaluation_feasible, evaluation_objective,
     evaluation_violation, make_design,
 )
@@ -123,6 +123,8 @@ class SequentialQUBOOptimizer:
             "builder": {
                 "max_candidates": self.builder.max_candidates,
                 "parallel_workers": self.builder.parallel_workers,
+                "parallel_backend": self.builder.parallel_backend,
+                "persistent_workers": self.builder.persistent_workers,
                 "penalty": {
                     key: getattr(self.builder.penalty, key)
                     for key in (
@@ -212,11 +214,17 @@ class SequentialQUBOOptimizer:
         history = [HistoryEntry(0, evaluation_objective(current_eval),
                                 evaluation_feasible(current_eval), current)]
         total_fem, message, restoration_count = 1, "maximum iterations reached", 0
+        status = "success"
+        stop = StopController(limits)
         qubo_history: list[dict[str, Any]] = []
         build_seconds = solve_seconds = validation_seconds = 0.0
         iteration_cap = min(self.max_iterations,
                             limits.max_iterations if limits and limits.max_iterations else self.max_iterations)
         for iteration in range(start_iteration + 1, start_iteration + iteration_cap + 1):
+            reason = stop.reached(total_fem, iteration - start_iteration - 1)
+            if reason:
+                message, status = reason, "stopped"
+                break
             model, decoder = self.builder.build(make_design(problem, current, template))
             build_seconds += float(self.builder.last_metadata.get("build_seconds", 0.0))
             total_fem += int(self.builder.last_metadata["fem_evaluations"])
@@ -272,11 +280,9 @@ class SequentialQUBOOptimizer:
                 message = "trust-region step rejected or no improvement"
                 self._write_checkpoint(current, iteration, seen, context_checksum)
                 break
-            if limits and limits.max_evaluations and total_fem >= limits.max_evaluations:
-                message = "maximum evaluations reached"
-                break
-            if limits and limits.time_limit and perf_counter() - started >= limits.time_limit:
-                message = "time limit reached"
+            reason = stop.reached(total_fem, iteration - start_iteration)
+            if reason:
+                message, status = reason, "stopped"
                 break
         objective = evaluation_objective(current_eval)
         gap = None
@@ -284,7 +290,7 @@ class SequentialQUBOOptimizer:
             gap = (objective - self.reference_objective) / max(abs(self.reference_objective), 1e-12)
         return OptimizationResult(make_design(problem, current, template), objective,
             evaluation_feasible(current_eval), evaluation_constraints(current_eval),
-            len(history)-1, total_fem, perf_counter()-started, "sequential_qubo", "success",
+            len(history)-1, total_fem, perf_counter()-started, "sequential_qubo", status,
             message, {"qubo_solver": type(self.qubo_solver).__name__,
                       "qubo_energy": qubo_history[-1]["energy"] if qubo_history else None,
                       "qubo_history": tuple(qubo_history),

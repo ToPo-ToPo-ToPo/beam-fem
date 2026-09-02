@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from math import inf, isfinite
+import os
+import sys
 from time import perf_counter
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
@@ -27,6 +29,7 @@ class SolverLimits:
     max_evaluations: int | None = None
     max_iterations: int | None = None
     time_limit: float | None = None
+    memory_limit_mb: float | None = None
 
     def __post_init__(self) -> None:
         if self.max_evaluations is not None and self.max_evaluations < 1:
@@ -37,6 +40,50 @@ class SolverLimits:
             not isfinite(float(self.time_limit)) or self.time_limit <= 0
         ):
             raise ValueError("time_limit must be finite and positive")
+        if self.memory_limit_mb is not None and (
+            not isfinite(float(self.memory_limit_mb)) or self.memory_limit_mb <= 0
+        ):
+            raise ValueError("memory_limit_mb must be finite and positive")
+
+
+def peak_resident_memory_bytes() -> int | None:
+    """Return process peak RSS using only the Python standard library."""
+
+    if os.name == "nt":  # pragma: no cover - exercised by Windows CI
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class _Counters(ctypes.Structure):
+                _fields_ = [
+                    ("cb", wintypes.DWORD),
+                    ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t),
+                    ("WorkingSetSize", ctypes.c_size_t),
+                    ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t),
+                    ("PeakPagefileUsage", ctypes.c_size_t),
+                ]
+
+            counters = _Counters()
+            counters.cb = ctypes.sizeof(counters)
+            process = ctypes.windll.kernel32.GetCurrentProcess()
+            ok = ctypes.windll.psapi.GetProcessMemoryInfo(
+                process, ctypes.byref(counters), counters.cb
+            )
+            return int(counters.PeakWorkingSetSize) if ok else None
+        except (AttributeError, OSError, TypeError):
+            return None
+    try:
+        import resource
+
+        value = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        return value if sys.platform == "darwin" else value * 1024
+    except (ImportError, OSError, ValueError):  # pragma: no cover
+        return None
 
 
 @dataclass(frozen=True)
@@ -259,4 +306,10 @@ class StopController:
             return "maximum iterations reached"
         if self.limits.time_limit is not None and perf_counter() - self.started >= self.limits.time_limit:
             return "time limit reached"
+        if self.limits.memory_limit_mb is not None:
+            used = peak_resident_memory_bytes()
+            if used is None:
+                return "memory limit cannot be verified on this platform"
+            if used >= float(self.limits.memory_limit_mb) * 1024.0 * 1024.0:
+                return "memory limit reached"
         return None

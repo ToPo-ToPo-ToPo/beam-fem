@@ -11,15 +11,24 @@ member checks, connections, stability, detailing, and governing law before use.
 
 ## Supported analysis envelope
 
-- SI-unit, linear-elastic 2D/3D beam/frame models supported by beamfem;
+- SI-unit, linear-elastic static 2D/3D axial-truss, Timoshenko-frame, and mixed
+  truss/frame models built through the portable optimization adapter;
 - discrete section/topology candidates and static load combinations;
 - mass/cost/carbon objectives exposed by the optimization problem;
-- stress, displacement, idealized Euler buckling, and topology constraints;
-- exact, greedy, SA, and optional QAOA optimization backends;
+- stress, absolute/relative displacement, idealized Euler buckling, explicitly
+  supplied section-slenderness ratios, member count/length/connectivity,
+  same-section, section-type-count, required/forbidden-member, and symmetry
+  constraints;
+- exact, greedy/multi-start, explicit equilibrium/capacity MILP, SA, local QUBO,
+  and optional QAOA optimization backends, with common FEM re-evaluation;
 - versioned inputs, deterministic seed/settings, checksums, run manifests, and
   external-review-required reports.
 
-Outside the validated envelope include material/geometric nonlinearity,
+The explicit MILP formulation covers truss equilibrium and axial capacity;
+displacement/compatibility and all other constraints are accepted only after
+common FEM re-evaluation. Exact enumeration is a small-problem reference.
+QUBO/QAOA uses a trust-region local surrogate and is not an exact global FEM
+encoding. Outside the validated envelope include material/geometric nonlinearity,
 connection design, fatigue, fracture, fire, seismic qualification, fabrication
 tolerances, soil-structure interaction, accidental actions, construction stages,
 and regulatory approval. Absence from this list must not be interpreted as

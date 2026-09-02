@@ -20,8 +20,8 @@ from scipy.optimize import Bounds, LinearConstraint, milp
 from ..topology import GroundStructure, equilibrium_matrix
 
 from .base import (
-    OptimizationResult, SolverLimits, evaluate_problem, evaluation_constraints,
-    evaluation_feasible, evaluation_objective, make_design,
+    OptimizationResult, SolverLimits, design_values, evaluate_problem,
+    evaluation_constraints, evaluation_feasible, evaluation_objective, make_design,
 )
 
 
@@ -43,6 +43,7 @@ def build_truss_sizing_milp(
     tensile_stress: float,
     compressive_stress: float | None = None,
     euler_capacities: Sequence[Sequence[float]] | None = None,
+    state_indices: Sequence[int] | Sequence[Sequence[int]] | None = None,
 ) -> MILPFormulation:
     """Build an exact equilibrium/capacity MILP for discrete truss sizing.
 
@@ -50,6 +51,9 @@ def build_truss_sizing_milp(
     Elastic compatibility and displacement constraints are intentionally not
     approximated.  ``MILPBackend`` always revalidates the selected design with
     the caller's FEM problem, which may therefore reject the MILP candidate.
+    ``state_indices`` maps formulation columns to the caller's catalog indices;
+    this permits an all-active sizing formulation without pretending that a
+    zero-area OFF state is elastically stable.
     """
     scalar_inputs = (density, tensile_stress,
                      tensile_stress if compressive_stress is None else compressive_stress)
@@ -77,6 +81,24 @@ def build_truss_sizing_milp(
         raise ValueError("euler_capacities must match section_areas")
     if euler is not None and (not np.all(np.isfinite(euler)) or np.any(euler < 0)):
         raise ValueError("euler_capacities must be finite and nonnegative")
+    if state_indices is None:
+        decoded_states = np.tile(np.arange(sections, dtype=int), (member_count, 1))
+    else:
+        raw_states = list(state_indices)
+        if not raw_states:
+            raise ValueError("state_indices cannot be empty")
+        if np.isscalar(raw_states[0]):
+            candidate_states = np.tile(np.asarray(raw_states, dtype=float), (member_count, 1))
+        else:
+            candidate_states = np.asarray(raw_states, dtype=float)
+        if (candidate_states.shape != areas.shape
+                or not np.all(np.isfinite(candidate_states))
+                or np.any(candidate_states < 0)
+                or not np.all(candidate_states == np.floor(candidate_states))):
+            raise ValueError(
+                "state_indices must match section_areas and contain nonnegative integers"
+            )
+        decoded_states = candidate_states.astype(int)
 
     # x = [y(member,section), force(case,member,section)]
     n_y = member_count * sections
@@ -126,18 +148,24 @@ def build_truss_sizing_milp(
 
     def decode(x):
         selected = np.asarray(x[:n_y]).reshape(member_count, sections)
-        return tuple(int(np.argmax(row_values)) for row_values in selected)
+        return tuple(
+            int(decoded_states[member, np.argmax(row_values)])
+            for member, row_values in enumerate(selected)
+        )
 
     return MILPFormulation(objective, integrality, Bounds(lower, upper), constraint, decode,
         metadata={"formulation_scope": "truss_equilibrium_and_section_capacity",
                   "elastic_compatibility": False, "displacement_constraints": False,
                   "global_optimum_for_scope": True, "members": member_count,
-                  "load_cases": cases, "sections_per_member": sections})
+                  "load_cases": cases, "sections_per_member": sections,
+                  "decoded_state_indices": decoded_states.tolist()})
 
 
 class MILPBackend:
-    def __init__(self, formulation: MILPFormulation | None = None):
+    def __init__(self, formulation: MILPFormulation | None = None,
+                 fem_repair_backend: Any | None = None):
         self.formulation = formulation
+        self.fem_repair_backend = fem_repair_backend
 
     def _formulation(self, problem: Any, initial_design: Any) -> MILPFormulation:
         if self.formulation is not None:
@@ -187,6 +215,31 @@ class MILPBackend:
                     "mip_node_count": finite_or_none(getattr(result, "mip_node_count", None)),
                     "linear_objective": float(result.fun)}
         metadata.update(dict(formulation.metadata or {}))
+        if not evaluation_feasible(evaluation) and self.fem_repair_backend is not None:
+            anchor = template
+            anchor_evaluation = evaluate_problem(problem, anchor)
+            repair_start = anchor if evaluation_feasible(anchor_evaluation) else design
+            repaired = self.fem_repair_backend.solve(problem, repair_start, limits)
+            metadata.update({
+                "milp_candidate": list(design_values(design)),
+                "milp_candidate_fem_feasible": False,
+                "fem_repair_performed": True,
+                "fem_repair_backend": repaired.backend,
+                "fem_repair_start": "initial_design" if repair_start is anchor else "milp_candidate",
+                "fem_repair_feasible": repaired.feasible,
+            })
+            return OptimizationResult(
+                repaired.design, repaired.objective, repaired.feasible, repaired.constraints,
+                repaired.iterations, repaired.evaluations + 2,
+                perf_counter() - started, "milp_fem_repair",
+                "success" if repaired.feasible else "infeasible",
+                ("MILP candidate failed common FEM; " + repaired.message), metadata,
+                repaired.history, repaired.evaluation,
+            )
+        metadata.update({
+            "milp_candidate_fem_feasible": evaluation_feasible(evaluation),
+            "fem_repair_performed": False,
+        })
         return OptimizationResult(design, evaluation_objective(evaluation), evaluation_feasible(evaluation),
             evaluation_constraints(evaluation), evaluations=1, runtime=perf_counter()-started,
             backend="milp", status="success" if result.success else "stopped",

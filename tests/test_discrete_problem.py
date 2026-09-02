@@ -2,6 +2,7 @@
 
 import math
 import json
+import pickle
 
 import numpy as np
 
@@ -71,6 +72,18 @@ def test_section_catalog_and_design_names_validation():
     assert p.design_from_names(["L"]) == DesignState([2])
     assert p.catalogs[0].off_index == 0
     assert hash(DesignState([1])) == hash(DesignState([1]))
+
+
+def test_problem_pickle_rebuilds_read_only_loads_and_drops_local_fem_cache():
+    problem = axial_problem()
+    expected = problem.evaluate(problem.initial_design)
+    restored = pickle.loads(pickle.dumps(problem))
+    assert restored._evaluator is None
+    assert dict(restored.load_cases[0].loads) == dict(problem.load_cases[0].loads)
+    assert dict(restored.load_combinations[0].factors) == {"P": 1.0}
+    actual = restored.evaluate(restored.initial_design)
+    assert actual.objective == expected.objective
+    assert actual.feasible == expected.feasible
 
 
 def test_axial_fem_mass_stress_displacement_and_machine_readable_result():

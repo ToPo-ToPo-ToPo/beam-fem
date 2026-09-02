@@ -85,6 +85,12 @@ rho = actual_improvement / predicted_improvement
 小規模問題ではExactまたはMILPを基準にoptimality gapを測る。QAOAではqubit数、
 shots、reps、回路深さ、ゲート数、サンプル分布、最良解確率も保存する。
 
+静定トラスの釣合い・断面耐力MILPは、その明示された範囲でのみ大域最適である。
+不静定トラスでは弾性適合・変位・剛性安定性を含まない下界候補になり得るため、
+共通FEMで不合格となった候補をMILP解と偽って採用しない。必要に応じて、既知の
+FEM可行anchorからfeasibility-first探索を実行し、raw MILP候補、修復backend、
+修復後設計を別々の監査項目として保存する。
+
 ## 性能方針
 
 - 設計状態のハッシュによるFEMキャッシュ

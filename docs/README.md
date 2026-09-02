@@ -24,6 +24,7 @@
 | [14. 製品範囲・設計照査](14_product_scope_and_code_checks.md) | Schema v2、照査trace、AISC preview、外部review gate | `validation/`, `io/` |
 | [15. 製品要件・リリース条件](15_product_requirements.md) | 適用範囲、精度・性能基準、RC判定 | `validation/` |
 | [16. 量子バックエンド検証](16_quantum_validation.md) | Statevector/Aer/実機差替え、証拠要件 | `optimize/backends/qaoa.py` |
+| [17. リリース運用](17_release_operations.md) | 成果物保持、完全性検証、ロールバック | `io/release_archive.py` |
 
 ## 例題
 
@@ -82,7 +83,8 @@
 
 ## 単位系
 
-単位は強制しない。SI 一貫（N, m, Pa, kg, kg/m³）を推奨し、入力の一貫性は利用者が担保する。
+Python APIは単位変換を行わないため一貫単位を利用者が担保する。バージョン付き
+JSON/YAML最適化入力ではSI（N, m, Pa, kg, kg/m³）を必須とし、入力検証で拒否する。
 
 ## 座標系と自由度の規約（全章共通）
 

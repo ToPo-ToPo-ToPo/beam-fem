@@ -41,12 +41,17 @@ Aerを使う場合は `.[viz,dev,qaoa-aer]` を指定する。
 
 規格断面の選択と部材の有無を、同じFEM評価器に対して Exact、Greedy、SA、
 Qiskit QAOAで比較できる。入力はSI単位のバージョン付きJSON/YAMLで、複数荷重
-ケース・荷重組合せ・自重、応力・変位・Euler座屈・構成上の制約に対応する。
+ケース・荷重組合せ・自重、応力、絶対/相対変位、Euler座屈、カタログ指定の
+断面細長比、同一断面、断面種類数、部材数、対称性、連結性、部材長、
+必須/禁止部材の制約に対応する。
 
 ```bash
 python benchmarks/quantum_truss/generate_cases.py small workspace/small.json
+python benchmarks/quantum_truss/generate_cases.py medium workspace/medium.json
 beamfem-optimize workspace/small.json --output workspace/greedy.json --backend greedy
 beamfem-optimize workspace/small.json --output workspace/sa.json --backend sa --seed 42
+beamfem-optimize workspace/medium.json --output workspace/sa-medium.json --backend sa \
+  --parallel-workers 4 --seed 42
 beamfem-optimize workspace/small.json --output workspace/qaoa.json --backend qaoa \
   --qaoa-reps 1 --qaoa-maxiter 100 --shots 1024
 ```
@@ -56,6 +61,8 @@ beamfem-optimize workspace/small.json --output workspace/qaoa.json --backend qao
 pass managerはPython APIから差し替えられ、Qiskitがない環境では明示したfallbackを
 利用できる。入力仕様と監査形式は [`docs/13_input_audit_benchmarks.md`](docs/13_input_audit_benchmarks.md)、
 設計と制約事項は [`docs/12_discrete_quantum_optimization.md`](docs/12_discrete_quantum_optimization.md) を参照。
+`--parallel-workers 2` 以上では候補FEMを独立プロセスで評価し、SA/QAOAの反復中は
+workerを再利用する。出力順とQUBO係数は逐次評価と同一になるよう固定される。
 
 Schema v2では各部材を `member_type: frame | truss` で明示し、混在モデルも扱える。
 v1入力は後方互換のためframeとして移行され、暗黙にトラスへ変更されない。
@@ -69,7 +76,7 @@ beamfem-optimize workspace/small.json --output workspace/result.json --backend s
   --html-report workspace/report.html --dependency-audit workspace/dependencies.json
 ```
 
-本版は `1.0.0rc1` であり、設計承認・法規適合を自動保証しない。AISC 360-22
+本版は `1.0.0rc2` であり、設計承認・法規適合を自動保証しない。AISC 360-22
 軸力部材チェックは限定previewで、責任ある構造設計者の外部レビューが必須である。
 リリース条件と未対応範囲は [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) を参照。
 
@@ -302,7 +309,6 @@ examples/       使用例
 - [x] トポロジー／部材配置最適化（Ground Structure 法・トラスLP）
 - [x] 三角形フラットシェル要素（CST 膜 + DKT 板曲げ、単純支持板で検証）
 - [x] 四角形フラットシェル要素 MITC4（Q4 膜 + Mindlin 板曲げ、厚板〜薄板・ロックなし）
+- [x] バージョン付き離散最適化入力、共通FEM評価、Exact/MILP/SA/QUBO/QAOA比較
 - [ ] 固有値（モーダル）解析
-- [ ] 断面サイジング最適化（解析的感度 + MMA）
-- [ ] トポロジー / 部材配置最適化（Ground Structure 法）
 ```

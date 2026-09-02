@@ -15,17 +15,23 @@ CASE_SIZES = {
 }
 
 
-def generate_case(size: str, *, bay_length: float = 1.5, height: float = 1.2) -> dict[str, Any]:
+def generate_case(size: str, *, bay_length: float | None = None, height: float = 1.2,
+                  total_span: float = 4.5) -> dict[str, Any]:
     """Create a schema-v1 planar ground structure for benchmarking.
 
     ``small`` reproduces the 8-node/16-member topology used by the legacy
-    quantum-truss experiment. Larger cases repeat the same well-conditioned
-    pattern without embedding solver-specific objects.
+    quantum-truss experiment. Larger cases refine the same 4.5 m span and
+    distribute the same total nodal loads over more bays. This isolates
+    computational scaling from an unintended increase in physical demand.
     """
 
     if size not in CASE_SIZES:
         raise ValueError(f"size must be one of {sorted(CASE_SIZES)}")
     bays = CASE_SIZES[size]
+    if bay_length is None:
+        bay_length = total_span / bays
+    if bay_length <= 0.0 or height <= 0.0:
+        raise ValueError("bay_length and height must be positive")
     nodes = []
     for row, y in (("b", 0.0), ("t", height)):
         nodes.extend(
@@ -82,11 +88,11 @@ def generate_case(size: str, *, bay_length: float = 1.5, height: float = 1.2) ->
         ],
         "load_cases": {
             "gravity": [
-                {"node": f"t{i}", "force": [0.0, -20_000.0]}
+                {"node": f"t{i}", "force": [0.0, -60_000.0 / bays]}
                 for i in range(1, bays + 1)
             ],
             "wind": [
-                {"node": f"t{i}", "force": [4_000.0, -5_000.0]}
+                {"node": f"t{i}", "force": [12_000.0 / bays, -15_000.0 / bays]}
                 for i in range(1, bays + 1)
             ],
         },

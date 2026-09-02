@@ -17,6 +17,7 @@ from beamfem.optimize.backends import (
     GreedyBackend, OptimizationResult, QAOABackend, SequentialQUBOOptimizer,
     SimulatedAnnealingBackend, SolverLimits,
 )
+from beamfem.optimize.backends.base import StopController
 from beamfem.optimize.backends.milp import build_truss_sizing_milp
 from beamfem.optimize.qubo import AdaptivePenalty, LocalQUBOBuilder, QUBOModel, TrustRegion
 from beamfem.optimize.topology import GroundStructure
@@ -129,6 +130,8 @@ def test_nonfinite_backend_settings_and_evaluations_are_rejected_early():
         SimulatedAnnealingBackend(initial_temperature=float("inf"))
     with pytest.raises(ValueError, match="time_limit"):
         SolverLimits(time_limit=float("nan"))
+    with pytest.raises(ValueError, match="memory_limit_mb"):
+        SolverLimits(memory_limit_mb=0)
     with pytest.raises(ValueError, match="shots"):
         QAOABackend(shots=0)
 
@@ -138,6 +141,11 @@ def test_nonfinite_backend_settings_and_evaluations_are_rejected_early():
 
     with pytest.raises(ValueError, match="objective must be finite"):
         GreedyBackend().solve(_NonfiniteProblem())
+
+
+def test_memory_limit_is_machine_readable_and_enforced():
+    controller = StopController(SolverLimits(memory_limit_mb=0.001))
+    assert controller.reached(0, 0) == "memory limit reached"
 
 
 def test_qaoa_empty_samples_use_none_probability(monkeypatch, tmp_path):

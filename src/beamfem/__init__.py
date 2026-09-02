@@ -20,7 +20,7 @@ from .shell import recover_shell_forces, ShellForceResults, ShellForces
 from .workspace import set_workspace, get_workspace
 from .builders import radial_grillage, lump_pressure, Grillage
 
-__version__ = "1.0.0rc1"
+__version__ = "1.0.0rc2"
 
 __all__ = [
     "Material",

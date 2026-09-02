@@ -17,6 +17,22 @@ from typing import Any, Mapping
 
 CURRENT_SCHEMA_VERSION = "2.0"
 _SUPPORTED_VERSIONS = frozenset({"1.0", CURRENT_SCHEMA_VERSION})
+_DOF_NAMES = frozenset({"UX", "UY", "UZ", "RX", "RY", "RZ"})
+_CONSTRAINT_FIELDS: dict[str, frozenset[str]] = {
+    "stress": frozenset({"type", "id", "members", "combinations", "tension", "compression"}),
+    "euler_buckling": frozenset({"type", "id", "members", "combinations", "effective_length_factor", "axis"}),
+    "displacement": frozenset({"type", "id", "nodes", "dofs", "combinations", "limit"}),
+    "relative_displacement": frozenset({"type", "id", "node_a", "node_b", "dof", "combinations", "limit"}),
+    "required_members": frozenset({"type", "id", "members"}),
+    "forbidden_members": frozenset({"type", "id", "members"}),
+    "same_section_group": frozenset({"type", "id", "members"}),
+    "max_section_types": frozenset({"type", "id", "members", "maximum", "include_off"}),
+    "active_member_count": frozenset({"type", "id", "members", "minimum", "maximum"}),
+    "symmetry_pairs": frozenset({"type", "id", "pairs"}),
+    "connectivity": frozenset({"type", "id", "nodes"}),
+    "member_length_range": frozenset({"type", "id", "members", "minimum", "maximum"}),
+    "section_slenderness": frozenset({"type", "id", "members", "maximum"}),
+}
 
 
 class SchemaValidationError(ValueError):
@@ -176,6 +192,13 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
             inertia = entry.get("I")
             if inertia is not None and (not _is_number(inertia) or inertia <= 0):
                 errors.append(f"section_catalogs.{name}[{j}].I must be positive when provided")
+            slenderness = entry.get("slenderness")
+            if slenderness is not None and (
+                not _is_number(slenderness) or slenderness <= 0
+            ):
+                errors.append(
+                    f"section_catalogs.{name}[{j}].slenderness must be positive when provided"
+                )
 
     members = _require_list(data.get("members"), "members", errors)
     member_ids: set[str] = set()
@@ -236,6 +259,10 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
             isinstance(dof, str) for dof in dofs
         ):
             errors.append(f"supports[{i}].dofs must be a non-empty string array")
+        elif any(dof not in _DOF_NAMES for dof in dofs):
+            errors.append(f"supports[{i}].dofs contains an unknown DOF")
+        elif len(set(dofs)) != len(dofs):
+            errors.append(f"supports[{i}].dofs must not contain duplicates")
 
     load_cases = _require_mapping(data.get("load_cases"), "load_cases", errors)
     for case_name, loads_value in load_cases.items():
@@ -281,33 +308,167 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
     member_by_id = {
         member.get("id"): member for member in members if isinstance(member, Mapping)
     }
+    constraint_ids: set[str] = set()
+
+    def validate_references(
+        value: Any, path: str, known: set[str], *, minimum: int = 0
+    ) -> list[str]:
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) and item for item in value
+        ):
+            errors.append(f"{path} must be an array of non-empty identifiers")
+            return []
+        if len(value) < minimum:
+            errors.append(f"{path} must contain at least {minimum} entries")
+        if len(set(value)) != len(value):
+            errors.append(f"{path} must not contain duplicates")
+        unknown = set(value) - known
+        if unknown:
+            errors.append(f"{path} references unknown identifiers: {sorted(unknown)}")
+        return value
+
     for index, constraint_value in enumerate(constraints):
-        constraint = _require_mapping(constraint_value, f"constraints[{index}]", errors)
-        if constraint.get("type") != "euler_buckling":
+        path = f"constraints[{index}]"
+        constraint = _require_mapping(constraint_value, path, errors)
+        kind = constraint.get("type")
+        if kind not in _CONSTRAINT_FIELDS:
+            errors.append(f"{path}.type is an unsupported constraint type: {kind!r}")
             continue
+        unknown_fields = set(constraint) - set(_CONSTRAINT_FIELDS[kind])
+        if unknown_fields:
+            errors.append(f"{path} contains unsupported fields: {sorted(unknown_fields)}")
+        constraint_id = constraint.get("id")
+        if constraint_id is not None:
+            if not isinstance(constraint_id, str) or not constraint_id:
+                errors.append(f"{path}.id must be a non-empty string when provided")
+            elif constraint_id in constraint_ids:
+                errors.append(f"{path}.id duplicates {constraint_id!r}")
+            else:
+                constraint_ids.add(constraint_id)
+
         selected = constraint.get("members")
         if selected is None:
             selected_ids = set(member_by_id)
-        elif isinstance(selected, list) and all(isinstance(value, str) for value in selected):
-            selected_ids = set(selected)
-            unknown = selected_ids - set(member_by_id)
-            if unknown:
-                errors.append(f"constraints[{index}].members references unknown members")
         else:
-            errors.append(f"constraints[{index}].members must be a list of member ids")
-            selected_ids = set()
-        required_catalogs = {
-            member_by_id[member_id].get("catalog")
-            for member_id in selected_ids if member_id in member_by_id
-        }
-        for catalog_name in required_catalogs:
-            if catalog_name not in catalogs:
-                continue
-            if any(not _is_number(entry.get("I")) or entry["I"] <= 0
-                   for entry in catalogs[catalog_name]):
-                errors.append(
-                    f"section_catalogs.{catalog_name} requires positive I for euler_buckling"
+            minimum = 2 if kind == "same_section_group" else 1
+            selected_ids = set(validate_references(
+                selected, f"{path}.members", set(member_by_id), minimum=minimum
+            ))
+        combo_filter = constraint.get("combinations")
+        if combo_filter is not None:
+            validate_references(
+                combo_filter, f"{path}.combinations", set(combinations), minimum=1
+            )
+
+        if kind == "stress":
+            for field in ("tension", "compression"):
+                value = constraint.get(field)
+                if value is not None and (not _is_number(value) or value <= 0):
+                    errors.append(f"{path}.{field} must be positive when provided")
+        elif kind == "euler_buckling":
+            factor = constraint.get("effective_length_factor", 1.0)
+            if not _is_number(factor) or factor <= 0:
+                errors.append(f"{path}.effective_length_factor must be positive")
+            if constraint.get("axis", "min") not in {"y", "z", "min"}:
+                errors.append(f"{path}.axis must be 'y', 'z', or 'min'")
+        elif kind == "displacement":
+            limit = constraint.get("limit")
+            if not _is_number(limit) or limit <= 0:
+                errors.append(f"{path}.limit must be positive")
+            if constraint.get("nodes") is not None:
+                validate_references(
+                    constraint["nodes"], f"{path}.nodes", node_ids, minimum=1
                 )
+            dofs = constraint.get("dofs")
+            if dofs is not None:
+                validate_references(dofs, f"{path}.dofs", set(_DOF_NAMES), minimum=1)
+        elif kind == "relative_displacement":
+            for field in ("node_a", "node_b"):
+                if constraint.get(field) not in node_ids:
+                    errors.append(f"{path}.{field} references an unknown node")
+            if constraint.get("node_a") == constraint.get("node_b"):
+                errors.append(f"{path}.node_a and node_b must differ")
+            if constraint.get("dof") not in _DOF_NAMES:
+                errors.append(f"{path}.dof must be a supported DOF name")
+            limit = constraint.get("limit")
+            if not _is_number(limit) or limit <= 0:
+                errors.append(f"{path}.limit must be positive")
+        elif kind in {"required_members", "forbidden_members", "same_section_group"}:
+            if selected is None:
+                errors.append(f"{path}.members is required")
+        elif kind == "max_section_types":
+            maximum = constraint.get("maximum")
+            if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum < 1:
+                errors.append(f"{path}.maximum must be a positive integer")
+            if not isinstance(constraint.get("include_off", False), bool):
+                errors.append(f"{path}.include_off must be boolean")
+        elif kind == "active_member_count":
+            minimum = constraint.get("minimum", 0)
+            maximum = constraint.get("maximum")
+            if "minimum" not in constraint and "maximum" not in constraint:
+                errors.append(f"{path} requires minimum and/or maximum")
+            if not isinstance(minimum, int) or isinstance(minimum, bool) or minimum < 0:
+                errors.append(f"{path}.minimum must be a non-negative integer")
+            if maximum is not None and (
+                not isinstance(maximum, int) or isinstance(maximum, bool) or maximum < minimum
+            ):
+                errors.append(f"{path}.maximum must be an integer >= minimum")
+        elif kind == "symmetry_pairs":
+            pairs = constraint.get("pairs")
+            if not isinstance(pairs, list) or not pairs:
+                errors.append(f"{path}.pairs must be a non-empty array")
+            else:
+                normalized_pairs: list[tuple[str, str]] = []
+                for pair_index, pair in enumerate(pairs):
+                    pair_path = f"{path}.pairs[{pair_index}]"
+                    if not isinstance(pair, list) or len(pair) != 2 or not all(
+                        isinstance(item, str) and item for item in pair
+                    ):
+                        errors.append(f"{pair_path} must contain exactly 2 member ids")
+                        continue
+                    if pair[0] == pair[1]:
+                        errors.append(f"{pair_path} members must differ")
+                    if set(pair) - set(member_by_id):
+                        errors.append(f"{pair_path} references an unknown member")
+                    normalized_pairs.append(tuple(sorted(pair)))
+                if len(set(normalized_pairs)) != len(normalized_pairs):
+                    errors.append(f"{path}.pairs must not contain duplicate pairs")
+        elif kind == "connectivity":
+            validate_references(
+                constraint.get("nodes"), f"{path}.nodes", node_ids, minimum=2
+            )
+        elif kind == "member_length_range":
+            minimum = constraint.get("minimum", 0.0)
+            maximum = constraint.get("maximum")
+            if not _is_number(minimum) or minimum < 0:
+                errors.append(f"{path}.minimum must be non-negative")
+            if maximum is not None and (not _is_number(maximum) or maximum <= 0):
+                errors.append(f"{path}.maximum must be positive when provided")
+            if _is_number(minimum) and _is_number(maximum) and maximum < minimum:
+                errors.append(f"{path}.maximum must be >= minimum")
+            if "minimum" not in constraint and "maximum" not in constraint:
+                errors.append(f"{path} requires minimum and/or maximum")
+        elif kind == "section_slenderness":
+            maximum = constraint.get("maximum")
+            if not _is_number(maximum) or maximum <= 0:
+                errors.append(f"{path}.maximum must be positive")
+
+        if kind in {"euler_buckling", "section_slenderness"}:
+            required_catalogs = {
+                member_by_id[member_id].get("catalog")
+                for member_id in selected_ids if member_id in member_by_id
+            }
+            required_field = "I" if kind == "euler_buckling" else "slenderness"
+            for catalog_name in required_catalogs:
+                if catalog_name not in catalogs:
+                    continue
+                if any(
+                    not _is_number(entry.get(required_field)) or entry[required_field] <= 0
+                    for entry in catalogs[catalog_name]
+                ):
+                    errors.append(
+                        f"section_catalogs.{catalog_name} requires positive {required_field} for {kind}"
+                    )
     objective = _require_mapping(data.get("objective"), "objective", errors)
     if objective.get("type") not in {"mass", "cost", "co2", "weighted"}:
         errors.append("objective.type must be mass, cost, co2, or weighted")

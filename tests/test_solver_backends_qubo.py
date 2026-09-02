@@ -113,6 +113,54 @@ def test_milp_requires_explicit_formulation_and_revalidates_with_fem_problem():
         MILPBackend().solve(ToyProblem())
 
 
+def test_milp_can_auditably_repair_a_candidate_rejected_by_common_fem():
+    class FeasibleAnchorProblem(ToyProblem):
+        initial_design = State((2, 0))
+
+    formulation = MILPFormulation(
+        objective=[1.0], integrality=[1], bounds=Bounds([0], [1]),
+        constraints=None, decoder=lambda _x: (0, 0),
+        metadata={"formulation_scope": "deliberately_incomplete_test_scope"},
+    )
+    result = MILPBackend(
+        formulation, fem_repair_backend=GreedyBackend(penalty=100.0),
+    ).solve(FeasibleAnchorProblem())
+    assert result.feasible
+    assert result.backend == "milp_fem_repair"
+    assert result.solver_metadata["milp_candidate_fem_feasible"] is False
+    assert result.solver_metadata["fem_repair_performed"] is True
+    assert result.solver_metadata["fem_repair_start"] == "initial_design"
+
+
+def test_truss_milp_decodes_explicit_problem_state_indices():
+    gs = GroundStructure(
+        nodes=np.array([[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]]),
+        members=[(0, 1), (0, 2), (1, 2)],
+        supports={0: [0, 1], 1: [1]},
+        load_cases=[{(2, 1): -1.0}],
+    )
+    formulation = build_truss_sizing_milp(
+        gs, [0.0, 0.1], density=1.0, tensile_stress=100.0,
+        state_indices=[2, 4],
+    )
+
+    class StateIndexProblem:
+        initial_design = State((4, 4, 4))
+        domains = ((2, 4),) * 3
+
+        def evaluate(self, design):
+            return Evaluation(float(sum(design_values(design))), True, ())
+
+    result = MILPBackend(formulation).solve(StateIndexProblem())
+    assert set(result.design.choices) <= {2, 4}
+    assert result.solver_metadata["decoded_state_indices"] == [[2, 4]] * 3
+    with pytest.raises(ValueError, match="nonnegative integers"):
+        build_truss_sizing_milp(
+            gs, [0.0, 0.1], density=1.0, tensile_stress=100.0,
+            state_indices=[0, 1.5],
+        )
+
+
 def test_qaoa_backend_is_importable_without_loading_qiskit():
     backend = QAOABackend(reps=1, maxiter=7)
     assert backend.reps == 1 and backend.maxiter == 7
@@ -172,6 +220,30 @@ def test_parallel_local_evaluation_is_explicit_and_reports_phase_timings():
     builder.build(problem.initial_design)
     assert builder.last_metadata["parallel_workers"] == 2
     assert builder.last_metadata["build_seconds"] >= builder.last_metadata["screening_seconds"]
+
+
+def test_process_parallel_local_evaluation_matches_sequential_qubo_bitwise():
+    problem = ToyProblem()
+    sequential, _ = LocalQUBOBuilder(
+        problem, max_candidates=4, penalty=AdaptivePenalty(value=100.0),
+    ).build(problem.initial_design)
+    with LocalQUBOBuilder(
+        problem, max_candidates=4, parallel_workers=2,
+        parallel_backend="process", persistent_workers=True,
+        penalty=AdaptivePenalty(value=100.0),
+    ) as builder:
+        parallel, _ = builder.build(problem.initial_design)
+        assert builder.last_metadata["parallel_backend"] == "process"
+        assert builder.last_metadata["persistent_workers"] is True
+    assert np.array_equal(parallel.linear, sequential.linear)
+    assert np.array_equal(parallel.quadratic, sequential.quadratic)
+    assert parallel.constant == sequential.constant
+    assert parallel.variable_names == sequential.variable_names
+
+
+def test_parallel_backend_rejects_unknown_executor_kind():
+    with pytest.raises(ValueError, match="parallel_backend"):
+        LocalQUBOBuilder(ToyProblem(), parallel_backend="gpu")
 
 
 def test_checkpoint_resume_and_optimality_gap(tmp_path):

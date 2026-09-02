@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "release_target": "1.0.0rc1",
+  "release_target": "1.0.0rc2",
   "analysis": {
     "reference_relative_error_max": 0.005,
     "equilibrium_residual_max": 1e-8,

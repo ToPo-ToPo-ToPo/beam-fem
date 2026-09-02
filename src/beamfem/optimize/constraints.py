@@ -266,6 +266,53 @@ class MemberLengthRange:
 
 
 @dataclass(frozen=True)
+class SectionSlendernessLimit:
+    """カタログ断面に明示された無次元細長比の上限。
+
+    ``SectionOption.slenderness_ratio`` は、例えば板要素の幅厚比など、採用する
+    照査規則で定義した断面細長比を入力側で算定した値である。この制約は規則や
+    断面分類を推測せず、指定値と上限だけを監査可能な形で比較する。
+    """
+
+    maximum: float
+    members: tuple[int, ...] | None = None
+    constraint_id: str = "section_slenderness"
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.maximum) or self.maximum <= 0.0:
+            raise ValueError("断面細長比上限は有限の正値でなければなりません")
+
+    def evaluate(self, context: "EvaluationContext") -> Iterable[ConstraintRecord]:
+        ids = self.members if self.members is not None else tuple(range(context.problem.n_members))
+        for member in ids:
+            option = context.option(member)
+            if not option.active:
+                continue
+            ratio = option.slenderness_ratio
+            if ratio is None or not math.isfinite(ratio):
+                yield ConstraintRecord(
+                    self.constraint_id,
+                    "section_slenderness",
+                    False,
+                    FAILED_UTILIZATION,
+                    limit=float(self.maximum),
+                    member=member,
+                    message="active section has no finite slenderness ratio",
+                    metadata={"section_name": option.name},
+                )
+                continue
+            yield _record(
+                self.constraint_id,
+                "section_slenderness",
+                float(ratio),
+                self.maximum,
+                member=member,
+                message="catalog section slenderness ratio",
+                metadata={"section_name": option.name},
+            )
+
+
+@dataclass(frozen=True)
 class DisplacementLimit:
     node: int
     dof: int

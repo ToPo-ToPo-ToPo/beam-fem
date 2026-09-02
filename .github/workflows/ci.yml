@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -78,9 +78,21 @@ jobs:
           cache: pip
       - name: Install
         run: python -m pip install -e ".[dev]"
-      - name: Truss, solver, schema, and product smoke tests
-        run: >-
-          python -m pytest
-          tests/test_truss.py tests/test_truss_edge_cases.py
-          tests/test_static_factorization.py tests/io
-          tests/test_product_integration_review.py
+      - name: Complete non-quantum test suite
+        env:
+          MPLBACKEND: Agg
+        run: python -m pytest
+
+  dependency-security:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install locked release environment and auditor
+        run: python -m pip install -r requirements-release.lock pip-audit
+      - name: Audit installed dependency set
+        run: python -m pip_audit --strict --desc
