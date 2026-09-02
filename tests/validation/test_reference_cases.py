@@ -6,6 +6,7 @@ from pathlib import Path
 from beamfem.validation.reference_cases import run_reference_suite, write_reference_evidence
 from beamfem.io import SchemaValidationError, migrate_v1_to_v2, validate_problem_spec
 from benchmarks.quantum_truss.generate_cases import generate_case
+from beamfem.validation import run_mixed_assembly_case
 import pytest
 
 
@@ -19,6 +20,8 @@ def test_all_hand_calculated_reference_cases_pass_and_evidence_is_json(tmp_path)
         "triangle-2d-handcalc-v1",
         "tripod-3d-handcalc-v1",
         "mixed-frame-truss-series-v1",
+        "pratt-2d-method-of-joints-v1",
+        "warren-2d-method-of-joints-v1",
     }
     for case in evidence["cases"]:
         assert case["metrics"]["equilibrium_residual"] <= 1e-8
@@ -33,9 +36,18 @@ def test_all_hand_calculated_reference_cases_pass_and_evidence_is_json(tmp_path)
     assert loaded["audit"]["python_version"]
     assert loaded["audit"]["platform"]
     assert set(loaded["fixture_sha256"]) == {
-        "triangle_2d.json", "tripod_3d.json", "mixed_frame_truss.json"
+        "triangle_2d.json", "tripod_3d.json", "mixed_frame_truss.json",
+        "pratt_2d.json", "warren_2d.json",
     }
     assert all(len(digest) == 64 for digest in loaded["fixture_sha256"].values())
+
+
+def test_truss_frame_shell_mixed_assembly_matches_closed_forms():
+    evidence = run_mixed_assembly_case()
+    assert evidence["passed"]
+    assert set(evidence["formulations"]) == {
+        "axial_truss", "timoshenko_frame", "cst_dkt_shell",
+    }
 
 
 def test_schema_v2_formulation_matches_member_types():

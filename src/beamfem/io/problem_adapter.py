@@ -125,11 +125,20 @@ def build_discrete_problem(spec: ProblemSpec | Mapping[str, Any]) -> BuiltProble
         material_name = member["material"]
         catalog = catalog_templates[(material_name, member["catalog"])]
         active = [option for option in catalog.options if option.active]
-        add = model.add_truss if member.get("member_type", "frame") == "truss" else model.add_element
-        index = add(
+        member_type = member.get("member_type", "frame")
+        args = (
             node_ids[member["nodes"][0]], node_ids[member["nodes"][1]],
             materials[material_name], active[-1].section,
         )
+        if member_type == "truss":
+            index = model.add_truss(*args)
+        else:
+            releases = member.get("end_releases", {})
+            index = model.add_element(
+                *args,
+                release_n1=tuple(DOF_NAMES[name] for name in releases.get("n1", ())),
+                release_n2=tuple(DOF_NAMES[name] for name in releases.get("n2", ())),
+            )
         member_ids[member["id"]] = index
         catalogs.append(catalog)
 

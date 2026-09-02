@@ -96,3 +96,46 @@ jobs:
         run: python -m pip install -r requirements-release.lock pip-audit
       - name: Audit installed dependency set
         run: python -m pip_audit --strict --desc
+
+  external-solver-validation:
+    name: OpenSees external solver cross-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install external validation support
+        run: python -m pip install -e ".[external-validation]"
+      - name: Compare linear and bilinear trusses with OpenSeesPy
+        run: python validation/run_opensees_crosscheck.py --output /tmp/opensees-crosscheck.json
+
+  release-evidence:
+    name: Release evidence and bounded endurance gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install release-candidate test environment
+        run: python -m pip install -e ".[viz,dev,qaoa-aer]"
+      - name: Regenerate deterministic code-check reference
+        run: python validation/run_code_check_reference.py --output /tmp/code-check-reference.json
+      - name: Run bounded large-case endurance evidence
+        run: >-
+          python -m benchmarks.endurance_acceptance --seconds 30 --evaluations 100
+          --memory-limit-mb 1024 --output /tmp/endurance-evidence.json
+      - name: Verify committed automated release evidence remains an RC only
+        run: |
+          python validation/run_release_gate.py --output /tmp/release-gate.json
+          python -c "import json; d=json.load(open('/tmp/release-gate.json')); assert d['automated_release_candidate_passed']; assert not d['external_approvals_passed']; assert d['release_stage']=='release-candidate'"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: |
+            /tmp/code-check-reference.json
+            /tmp/endurance-evidence.json
+            /tmp/release-gate.json

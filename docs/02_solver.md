@@ -66,9 +66,19 @@ $$\mathbf{R} = \mathbf{K}\mathbf{u} - \mathbf{F}$$
 
 ### ソルバの差し替え
 
-求解本体は `solver._solve_sparse(A, b)` に集約しており、ここを差し替えるだけで
-PARDISO（`pypardiso`）や CHOLMOD（`scikit-sparse`）へ交換できる。業務での性能要求に
-対応するための設計。
+既定は `scipy_splu`。`factorize_static(..., sparse_solver=...)` と
+`solve_static(..., sparse_solver=...)` は登録名、または `name` 属性と
+`factorize(csc_matrix)` を持つ公開 `SparseSolver` adapterを受け取る。
+`register_sparse_solver` でPARDISOやCHOLMODのadapterを登録でき、選択名は
+`StaticFactorization.solver_name` に保存される。
+
+### フレーム端部解放
+
+`Model.add_element` の `release_n1` / `release_n2` に局所回転DOF `RX`, `RY`,
+`RZ` を指定できる。解放自由度は局所剛性で静的縮約され、対応端力はゼロとなる。
+JSON/YAMLではframe memberへ
+`"end_releases":{"n1":["RZ"],"n2":["RY","RZ"]}` のように指定する。
+トラスへの指定、並進DOF、重複DOF、未知の端名は入力検証で拒否する。
 
 ## 2.5 結果オブジェクト
 

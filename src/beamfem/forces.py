@@ -28,6 +28,7 @@ import numpy as np
 
 from .element3d import (
     local_stiffness,
+    released_local_stiffness,
     rigid_offset_matrix,
     rotation_matrix,
     transformation_matrix,
@@ -64,6 +65,8 @@ class ElementForces:
     f_local: np.ndarray  # 12成分の局所端力
     sec: object  # Section（応力計算に使用）
     axial_only: bool = False
+    axial_strain: float | None = None
+    axial_extension: float | None = None
 
     # ---- 端での内力値 (node1, node2) ----
     def ends(self, comp: str) -> tuple[float, float]:
@@ -246,16 +249,23 @@ def recover_forces(model: Model, result: StaticResult) -> ForceResults:
         u_elem = result.u[dofs]
         if isinstance(e, TrussElement):
             axial = truss_axial_force(p1, p2, e.mat, e.sec, u_elem)
+            strain = axial / (e.mat.E * e.sec.A)
+            extension = strain * L
             f_local = np.zeros(12)
             f_local[0], f_local[6] = -axial, axial
         else:
-            k = local_stiffness(e.mat.E, e.mat.G, L, e.sec)
+            k = released_local_stiffness(
+                local_stiffness(e.mat.E, e.mat.G, L, e.sec),
+                e.release_n1, e.release_n2,
+            )
             R = rotation_matrix(p1, p2, e.vref)
             T = transformation_matrix(R)
             G = rigid_offset_matrix(e.offset)
             if G is not None:
                 u_elem = G @ u_elem  # 節点変位 → 梁図心の変位（剛体腕）
             f_local = k @ (T @ u_elem)
+            strain = extension = None
         efs.append(ElementForces(index=i, L=L, f_local=f_local, sec=e.sec,
-                                 axial_only=isinstance(e, TrussElement)))
+                                 axial_only=isinstance(e, TrussElement),
+                                 axial_strain=strain, axial_extension=extension))
     return ForceResults(model=model, elements=efs)

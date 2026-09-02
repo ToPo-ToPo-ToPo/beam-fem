@@ -83,6 +83,33 @@ def local_stiffness(E: float, G: float, L: float, sec: Section) -> np.ndarray:
     return k
 
 
+def released_local_stiffness(
+    stiffness: np.ndarray,
+    release_n1: tuple[int, ...] = (),
+    release_n2: tuple[int, ...] = (),
+) -> np.ndarray:
+    """Statically condense released local end rotations and re-embed to 12 DOFs.
+
+    Released generalized end forces are exactly zero. A Hermitian pseudoinverse
+    is used for the small released block so releasing torsion at both ends is
+    handled as a zero-energy mode instead of an unstable numeric inversion.
+    """
+    released = tuple(sorted(set(release_n1) | {6 + dof for dof in release_n2}))
+    if not released:
+        return np.asarray(stiffness, dtype=float)
+    if any(dof not in (3, 4, 5, 9, 10, 11) for dof in released):
+        raise ValueError("only local rotational frame end releases are supported")
+    retained = tuple(dof for dof in range(12) if dof not in released)
+    k = np.asarray(stiffness, dtype=float)
+    kaa = k[np.ix_(retained, retained)]
+    kar = k[np.ix_(retained, released)]
+    krr = k[np.ix_(released, released)]
+    condensed = kaa - kar @ np.linalg.pinv(krr, hermitian=True) @ kar.T
+    out = np.zeros((12, 12), dtype=float)
+    out[np.ix_(retained, retained)] = 0.5 * (condensed + condensed.T)
+    return out
+
+
 def rotation_matrix(p1: np.ndarray, p2: np.ndarray, vref: np.ndarray | None = None) -> np.ndarray:
     """局所→全体 の 3x3 方向余弦行列 R を返す。
 
@@ -168,6 +195,8 @@ def element_stiffness_global(
     sec: Section,
     vref: np.ndarray | None = None,
     offset: np.ndarray | None = None,
+    release_n1: tuple[int, ...] = (),
+    release_n2: tuple[int, ...] = (),
 ) -> np.ndarray:
     """全体座標系での 12x12 要素剛性行列 K = T^T k T。
 
@@ -176,7 +205,9 @@ def element_stiffness_global(
     剛性そのものはオフセットの平行移動では変わらず、連成は G が担う。
     """
     L = float(np.linalg.norm(p2 - p1))
-    k_local = local_stiffness(mat.E, mat.G, L, sec)
+    k_local = released_local_stiffness(
+        local_stiffness(mat.E, mat.G, L, sec), release_n1, release_n2
+    )
     R = rotation_matrix(p1, p2, vref)
     T = transformation_matrix(R)
     K = T.T @ k_local @ T

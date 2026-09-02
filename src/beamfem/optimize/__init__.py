@@ -22,8 +22,10 @@ from .discrete import (
 )
 from .catalogs import SectionOption, SectionCatalog
 from .problem import DesignState, LoadCase, LoadCombination, DiscreteStructuralProblem
-from .objectives import MassObjective, WeightedImpactObjective
+from .objectives import MassObjective, WeightedImpactObjective, impact_components
+from .pareto import ParetoFrontBackend, ParetoPoint, ParetoResult
 from .evaluation import StructuralEvaluator, EvaluationResult, CombinationAnalysis
+from .persistent_cache import PersistentEvaluationCache, problem_context_checksum
 from .constraints import (
     ConstraintRecord,
     RequiredMembers,
@@ -67,9 +69,15 @@ __all__ = [
     "DiscreteStructuralProblem",
     "MassObjective",
     "WeightedImpactObjective",
+    "impact_components",
+    "ParetoFrontBackend",
+    "ParetoPoint",
+    "ParetoResult",
     "StructuralEvaluator",
     "EvaluationResult",
     "CombinationAnalysis",
+    "PersistentEvaluationCache",
+    "problem_context_checksum",
     "ConstraintRecord",
     "RequiredMembers",
     "ForbiddenMembers",

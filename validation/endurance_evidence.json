@@ -1,0 +1,30 @@
+{
+  "evidence_schema_version": "1.0",
+  "created_at_utc": "2026-09-02T05:01:51.874002+00:00",
+  "environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.9",
+    "git_commit": "c0e9f6e61709e90be2b46904e82a91f96c7d752c"
+  },
+  "case": "large (201 candidate members)",
+  "minimum_seconds": 30.0,
+  "elapsed_seconds": 30.039236875018105,
+  "minimum_evaluations": 100,
+  "completed_evaluations": 318,
+  "unique_designs": 318,
+  "evaluations_per_second": 10.586154412746158,
+  "memory_limit_mb": 1024.0,
+  "tracemalloc_current_bytes": 383572290,
+  "tracemalloc_peak_bytes": 383747426,
+  "rss_start_bytes": 80543744,
+  "rss_peak_bytes": 816955392,
+  "checks": {
+    "minimum_duration_reached": true,
+    "minimum_evaluations_reached": true,
+    "finite_results": true,
+    "repeat_results_deterministic": true,
+    "python_peak_memory_within_limit": true,
+    "rss_peak_within_limit": true
+  },
+  "passed": true
+}

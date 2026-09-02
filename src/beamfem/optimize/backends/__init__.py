@@ -8,7 +8,7 @@ from .exact import ExactBackend
 from .greedy import GreedyBackend
 from .milp import MILPBackend, MILPFormulation
 from .multistart import MultiStartBackend
-from .qaoa import QAOABackend, QiskitNotInstalledError
+from .qaoa import IndependentReadoutMitigator, QAOABackend, QiskitNotInstalledError
 from .sa import SimulatedAnnealingBackend
 from .sequential import SequentialQUBOOptimizer
 
@@ -18,5 +18,6 @@ __all__ = [
     "MILPBackend", "MILPFormulation",
     "MultiStartBackend",
     "SimulatedAnnealingBackend", "QAOABackend", "QiskitNotInstalledError",
+    "IndependentReadoutMitigator",
     "SequentialQUBOOptimizer",
 ]

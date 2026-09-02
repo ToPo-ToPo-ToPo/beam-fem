@@ -26,9 +26,11 @@ qaoa-aer = [
     "qiskit-optimization>=0.7,<0.8",
     "qiskit-aer>=0.17,<0.18",
 ]
+external-validation = ["openseespy>=3.8,<4"]
 
 [project.scripts]
 beamfem-optimize = "beamfem.cli:main"
+beamfem-api = "beamfem.api:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

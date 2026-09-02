@@ -12,6 +12,7 @@
 
 - **3D Timoshenko 梁要素**（せん断変形を考慮、Euler-Bernoulli を極限に含む）
 - **純粋な2D/3D軸力トラス要素**（梁・シェルとの混在、機構診断、軸力回収）
+- **非線形・弾塑性トラス**（完全塑性・二直線等方硬化、return-mapping、除荷・再載荷、残留変形、corotational幾何非線形、極限荷重診断）
 - 軸・ねじり・2方向曲げ・せん断を統合した 12×12 要素剛性
 - **三角形フラットシェル要素**（3節点・各節点6自由度）：膜＝定ひずみ三角形 CST、板曲げ＝離散 Kirchhoff 三角形 DKT（薄板）。梁と混在可。単純支持板の Navier 解との一致を pytest で検証済み（誤差 <1%）
 - **四角形フラットシェル要素 MITC4**（4節点・各節点6自由度）：膜＝Q4、板曲げ＝MITC4（Mindlin-Reissner＋仮定横せん断）。**厚板〜薄板に対応**（せん断ロックなし）。Timoshenko 梁と同じくせん断変形を含む
@@ -56,6 +57,17 @@ beamfem-optimize workspace/small.json --output workspace/qaoa.json --backend qao
   --qaoa-reps 1 --qaoa-maxiter 100 --shots 1024
 ```
 
+CVaR、readout補正、PDF、過去実行比較、ローカルREST APIも利用できる。
+
+```bash
+beamfem-optimize workspace/small.json --output workspace/qaoa-cvar.json --backend qaoa \
+  --qaoa-cvar-alpha 0.25 --readout-error-rate 0.02 --shots 2048 \
+  --html-report workspace/report.html --pdf-report workspace/report.pdf
+beamfem-optimize workspace/small.json --output workspace/new.json \
+  --compare-with workspace/old.json --comparison-report workspace/comparison.html
+beamfem-api --host 127.0.0.1 --port 8080 --bearer-token TOKEN
+```
+
 結果JSONには目的値、質量、実行可能性、支配制約、QUBO energy、FEMで再評価した
 スコア、乱数seed、ソルバー設定、Git状態を保存する。QAOAのSamplerと transpilation
 pass managerはPython APIから差し替えられ、Qiskitがない環境では明示したfallbackを
@@ -79,6 +91,11 @@ beamfem-optimize workspace/small.json --output workspace/result.json --backend s
 本版は `1.0.0rc2` であり、設計承認・法規適合を自動保証しない。AISC 360-22
 軸力部材チェックは限定previewで、責任ある構造設計者の外部レビューが必須である。
 リリース条件と未対応範囲は [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) を参照。
+
+弾塑性トラスのPython API、適用限界、Exact/Greedyを使ったoptional-member・断面
+最適化例は [`docs/19_nonlinear_elastoplastic_truss.md`](docs/19_nonlinear_elastoplastic_truss.md)
+および [`examples/nonlinear_truss_optimization.py`](examples/nonlinear_truss_optimization.py)
+を参照。
 
 ## 使い方（最小例：片持ち梁）
 
@@ -311,9 +328,9 @@ examples/       使用例
 - [x] 四角形フラットシェル要素 MITC4（Q4 膜 + Mindlin 板曲げ、厚板〜薄板・ロックなし）
 - [x] バージョン付き離散最適化入力、共通FEM評価、Exact/MILP/SA/QUBO/QAOA比較
 - [x] 線形弾性RCの自動受入・再現性・性能・セキュリティ証跡
-- [ ] 弾塑性トラス解析（荷重増分・降伏履歴・除荷・残留変形）
-- [ ] 弾塑性FEMを用いた部材配置・離散断面最適化
-- [ ] 固有値（モーダル）解析
+- [x] 弾塑性トラス解析（荷重増分・降伏履歴・除荷・残留変形）
+- [x] 弾塑性FEMを用いた部材配置・離散断面最適化
+- [x] 固有値（モーダル）解析（部材・シェルの並進集中質量、質量なし回転自由度の静的縮約）
 
 フェーズ0〜8の細目ごとの判定と、塑性設計LPと弾塑性FEMの違いは
 [開発計画の実施状況](docs/18_development_plan_status.md)を参照。

@@ -78,7 +78,10 @@ def assemble_stiffness(
         if isinstance(e, TrussElement):
             ke = truss_stiffness_global(p1, p2, e.mat, e.sec)
         else:
-            ke = element_stiffness_global(p1, p2, e.mat, e.sec, e.vref, e.offset)
+            ke = element_stiffness_global(
+                p1, p2, e.mat, e.sec, e.vref, e.offset,
+                e.release_n1, e.release_n2,
+            )
         dofs = dof_maps[i]
         rr, cc = np.meshgrid(dofs, dofs, indexing="ij")
         sl = slice(i * 144, (i + 1) * 144)

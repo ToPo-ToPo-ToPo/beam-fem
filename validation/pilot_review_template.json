@@ -3,7 +3,9 @@
   "status": "pending",
   "pilot_id": null,
   "candidate_commit": null,
+  "input_path": null,
   "input_checksum": null,
+  "output_path": null,
   "output_checksum": null,
   "independent_reference": null,
   "comparisons": {
@@ -15,5 +17,6 @@
   },
   "accepted_by": null,
   "accepted_at": null,
+  "signature_or_approval_reference": null,
   "notes": []
 }

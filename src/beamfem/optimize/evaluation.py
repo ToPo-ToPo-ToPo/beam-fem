@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, replace
 import math
+from pathlib import Path
 from typing import Mapping, TYPE_CHECKING
 
 import numpy as np
@@ -90,18 +91,45 @@ class EvaluationContext:
 class StructuralEvaluator:
     """設計hashで解析結果をキャッシュするFEM評価器。"""
 
-    def __init__(self, problem: DiscreteStructuralProblem):
+    def __init__(self, problem: DiscreteStructuralProblem,
+                 persistent_cache_path: str | Path | None = None):
         self.problem = problem
         self._cache: dict[DesignState, EvaluationResult] = {}
+        self._persistent = None
+        self._persistent_loaded_keys: set[DesignState] = set()
+        self.persistent_cache_hits = 0
         self.n_analysis = 0
         self.n_cache_hits = 0
         self.n_factorizations = 0
+        if persistent_cache_path is not None:
+            self.enable_persistent_cache(persistent_cache_path)
+
+    def enable_persistent_cache(self, path: str | Path) -> None:
+        from .persistent_cache import PersistentEvaluationCache, problem_context_checksum
+
+        store = PersistentEvaluationCache(path, problem_context_checksum(self.problem))
+        loaded = store.load()
+        if not all(
+            isinstance(key, DesignState) and isinstance(value, EvaluationResult)
+            for key, value in loaded.items()
+        ):
+            raise ValueError("persistent FEM cache contains incompatible entries")
+        self._persistent = store
+        self._cache.update(loaded)
+        self._persistent_loaded_keys = set(loaded)
+
+    def _persist(self) -> None:
+        if self._persistent is not None:
+            self._persistent.save(self._cache)
 
     def clear_cache(self) -> None:
         self._cache.clear()
         self.n_analysis = 0
         self.n_cache_hits = 0
         self.n_factorizations = 0
+        self.persistent_cache_hits = 0
+        self._persistent_loaded_keys.clear()
+        self._persist()
 
     @property
     def cache_info(self) -> dict[str, int]:
@@ -163,6 +191,8 @@ class StructuralEvaluator:
         self.problem.validate_design(design)
         if use_cache and design in self._cache:
             self.n_cache_hits += 1
+            if design in self._persistent_loaded_keys:
+                self.persistent_cache_hits += 1
             return replace(self._cache[design], cache_hit=True)
 
         mass = MassObjective().evaluate(self.problem, design)
@@ -189,6 +219,7 @@ class StructuralEvaluator:
             result = self._failure(design, objective, mass, f"FEM analysis failed: {exc}")
             if use_cache:
                 self._cache[design] = result
+                self._persist()
             return result
 
         context = EvaluationContext(self.problem, design, analyses)
@@ -199,4 +230,5 @@ class StructuralEvaluator:
         result = EvaluationResult(design, objective, mass, feasible, tuple(records), analyses)
         if use_cache:
             self._cache[design] = result
+            self._persist()
         return result

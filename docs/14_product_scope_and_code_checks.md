@@ -65,6 +65,15 @@ elements, torsional/flexural-torsional buckling, system stability, combined
 actions, fatigue, seismic design, and all applicability determinations. A passing
 preview check therefore cannot become a design approval.
 
+The optional `aisc360_22_i_shape_flexural_classification()` helper records the
+flange and web classification from user-confirmed Table B4.1b ratios for a
+doubly symmetric rolled I-shape under major-axis flexure. The
+`aisc360_22_combined_lrfd_preview_ruleset()` evaluates the H1-1a/H1-1b
+interaction only after the caller confirms symmetry, second-order demand, and
+independently established axial and flexural available strengths. These narrow
+helpers improve traceability but do not expand the adapter into a complete AISC
+compliance implementation.
+
 ## Input migration
 
 Schema v2 adds explicit `metadata`, `analysis`, and `governance` records. The v1

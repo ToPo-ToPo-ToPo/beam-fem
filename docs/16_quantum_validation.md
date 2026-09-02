@@ -17,6 +17,27 @@ probability, logical qubits/depth/gate counts, QAOA wall time, exact energy gap
 for small QUBOs, execution label, and noise description. Provider-only metrics
 are never fabricated; unavailable fields remain null.
 
+`QAOABackend(cvar_alpha=...)` passes Qiskit's native CVaR aggregation fraction
+(`0 < alpha <= 1`) to the eigensolver. Omission retains the expectation
+objective. Metadata records `objective_aggregation` and `cvar_alpha`.
+
+The final eigensolver probability map is retained as `raw_distribution`. With
+configured shots, `raw_counts` records probability-times-shots integer counts
+and explicitly labels that derivation. A callable `readout_mitigator` hook
+retains both raw and corrected distributions. The bundled
+`IndependentReadoutMitigator(p01, p10)` implements tensor-product bit-flip
+correction for small QUBOs; provider calibration services can use the same hook.
+
+Timing uses a stable `quantum_timing` record: `total_wall_time` is measured
+locally, while provider `queue_time` and `execution_time` remain null unless an
+execution metadata provider supplies them. Missing provider timing is never
+reported as zero.
+
+```bash
+beamfem-optimize problem.json --output result.json --backend qaoa \
+  --qaoa-cvar-alpha 0.25 --readout-error-rate 0.02 --shots 2048
+```
+
 ## Reproducible noisy simulation
 
 ```bash

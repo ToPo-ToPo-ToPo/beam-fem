@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import json
 import math
 from pathlib import Path
+import re
 from typing import Any, Mapping
 
 
@@ -120,6 +121,40 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
             )
         if governance.get("external_review_required") is not True:
             errors.append("governance.external_review_required must be true")
+    external_catalogs = data.get("external_catalogs")
+    if external_catalogs is not None:
+        external = _require_mapping(external_catalogs, "external_catalogs", errors)
+        unknown_groups = set(external) - {"materials", "sections"}
+        if unknown_groups:
+            errors.append(
+                f"external_catalogs contains unsupported groups: {sorted(unknown_groups)}"
+            )
+        for group in ("materials", "sections"):
+            references = _require_mapping(
+                external.get(group, {}), f"external_catalogs.{group}", errors
+            )
+            for name, reference_value in references.items():
+                ref_path = f"external_catalogs.{group}.{name}"
+                reference = _require_mapping(reference_value, ref_path, errors)
+                unknown_fields = set(reference) - {"path", "version", "sha256", "row"}
+                if unknown_fields:
+                    errors.append(
+                        f"{ref_path} contains unsupported fields: {sorted(unknown_fields)}"
+                    )
+                for field in ("path", "version"):
+                    if not isinstance(reference.get(field), str) or not reference[field]:
+                        errors.append(f"{ref_path}.{field} must be a non-empty string")
+                digest = reference.get("sha256")
+                if digest is not None and (
+                    not isinstance(digest, str)
+                    or re.fullmatch(r"[0-9a-fA-F]{64}", digest) is None
+                ):
+                    errors.append(
+                        f"{ref_path}.sha256 must be a 64-character hexadecimal digest"
+                    )
+                row = reference.get("row")
+                if row is not None and (not isinstance(row, str) or not row):
+                    errors.append(f"{ref_path}.row must be a non-empty string when provided")
     self_weight = data.get("self_weight")
     if self_weight is not None and (
         not isinstance(self_weight, list)
@@ -230,6 +265,24 @@ def validate_problem_spec(document: Mapping[str, Any]) -> ProblemSpec:
             errors.append(f"members[{i}].member_type must be 'frame' or 'truss'")
         else:
             observed_member_types.add(member_type)
+        releases = member.get("end_releases")
+        if releases is not None:
+            if member_type != "frame":
+                errors.append(f"members[{i}].end_releases is only valid for frame members")
+            release_map = _require_mapping(releases, f"members[{i}].end_releases", errors)
+            unknown_ends = set(release_map) - {"n1", "n2"}
+            if unknown_ends:
+                errors.append(
+                    f"members[{i}].end_releases has unknown ends: {sorted(unknown_ends)}"
+                )
+            for end, values in release_map.items():
+                path = f"members[{i}].end_releases.{end}"
+                if not isinstance(values, list) or not all(
+                    value in {"RX", "RY", "RZ"} for value in values
+                ):
+                    errors.append(f"{path} must contain only RX, RY, RZ")
+                elif len(set(values)) != len(values):
+                    errors.append(f"{path} must not contain duplicates")
         if member_type == "frame" and member.get("catalog") in catalogs:
             for j, entry in enumerate(catalogs[member["catalog"]]):
                 if not _is_number(entry.get("I")) or entry["I"] <= 0:
@@ -511,5 +564,8 @@ def load_problem_spec(path: str | Path) -> ProblemSpec:
             document = yaml.safe_load(stream)
         else:
             raise ValueError("input file must use .json, .yaml, or .yml")
+    from .catalog_loader import resolve_external_catalogs
+
+    document = resolve_external_catalogs(document, source)
     validated = validate_problem_spec(document)
     return ProblemSpec(data=validated.data, source=source.resolve())

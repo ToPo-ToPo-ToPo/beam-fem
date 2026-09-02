@@ -9,6 +9,23 @@ if TYPE_CHECKING:
     from .problem import DiscreteStructuralProblem, DesignState
 
 
+def impact_components(problem: "DiscreteStructuralProblem",
+                      design: "DesignState") -> dict[str, float]:
+    """Return unweighted mass, cost, and embodied-carbon totals."""
+    totals = {"mass": 0.0, "cost": 0.0, "carbon": 0.0}
+    for i, choice in enumerate(design.choices):
+        option = problem.catalogs[i][choice]
+        if not option.active:
+            continue
+        material = option.material or problem.model.elements[i].mat
+        length = problem.model.element_length(problem.model.elements[i])
+        mass = material.rho * option.section.A * length
+        totals["mass"] += mass
+        totals["cost"] += mass * option.cost_per_kg
+        totals["carbon"] += mass * option.carbon_per_kg
+    return {key: float(value) for key, value in totals.items()}
+
+
 class StructuralObjective(Protocol):
     name: str
 
@@ -23,15 +40,7 @@ class MassObjective:
     name: str = "mass"
 
     def evaluate(self, problem: "DiscreteStructuralProblem", design: "DesignState") -> float:
-        mass = 0.0
-        for i, choice in enumerate(design.choices):
-            option = problem.catalogs[i][choice]
-            if not option.active:
-                continue
-            material = option.material or problem.model.elements[i].mat
-            length = problem.model.element_length(problem.model.elements[i])
-            mass += material.rho * option.section.A * length
-        return float(mass)
+        return impact_components(problem, design)["mass"]
 
 
 @dataclass(frozen=True)
@@ -44,17 +53,9 @@ class WeightedImpactObjective:
     name: str = "weighted_impact"
 
     def evaluate(self, problem: "DiscreteStructuralProblem", design: "DesignState") -> float:
-        total = 0.0
-        for i, choice in enumerate(design.choices):
-            option = problem.catalogs[i][choice]
-            if not option.active:
-                continue
-            material = option.material or problem.model.elements[i].mat
-            length = problem.model.element_length(problem.model.elements[i])
-            mass = material.rho * option.section.A * length
-            total += mass * (
-                self.mass_weight
-                + self.cost_weight * option.cost_per_kg
-                + self.carbon_weight * option.carbon_per_kg
-            )
-        return float(total)
+        values = impact_components(problem, design)
+        return float(
+            self.mass_weight * values["mass"]
+            + self.cost_weight * values["cost"]
+            + self.carbon_weight * values["carbon"]
+        )

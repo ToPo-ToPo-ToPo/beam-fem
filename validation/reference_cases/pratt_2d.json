@@ -1,0 +1,35 @@
+{
+  "case_id": "pratt-2d-method-of-joints-v1",
+  "description": "Two-panel Pratt truss checked by joint equilibrium and virtual work",
+  "dimension": 2,
+  "material": {"E": 200000000000.0, "nu": 0.3, "density": 7850.0},
+  "sections": {"bar": {"type": "generic", "A": 0.0004, "I": 1e-8}},
+  "nodes": [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [1, 1, 0], [2, 1, 0]],
+  "members": [
+    {"type": "truss", "nodes": [0, 1], "section": "bar"},
+    {"type": "truss", "nodes": [1, 2], "section": "bar"},
+    {"type": "truss", "nodes": [2, 3], "section": "bar"},
+    {"type": "truss", "nodes": [4, 5], "section": "bar"},
+    {"type": "truss", "nodes": [0, 4], "section": "bar"},
+    {"type": "truss", "nodes": [5, 3], "section": "bar"},
+    {"type": "truss", "nodes": [1, 4], "section": "bar"},
+    {"type": "truss", "nodes": [2, 5], "section": "bar"},
+    {"type": "truss", "nodes": [4, 2], "section": "bar"}
+  ],
+  "supports": [
+    {"node": 0, "dofs": ["UX", "UY", "UZ"]},
+    {"node": 1, "dofs": ["UZ"]}, {"node": 2, "dofs": ["UZ"]},
+    {"node": 3, "dofs": ["UY", "UZ"]},
+    {"node": 4, "dofs": ["UZ"]}, {"node": 5, "dofs": ["UZ"]}
+  ],
+  "loads": [
+    {"node": 4, "force": [0, -10000, 0]},
+    {"node": 5, "force": [0, -10000, 0]}
+  ],
+  "expected": {
+    "node": 4,
+    "displacement": [0.00025, -0.0006035533905932738, 0],
+    "axial_forces": [10000, 10000, 10000, -10000, -14142.13562373095, -14142.13562373095, 0, 0, 0],
+    "formula": "method of joints for N; unit-load virtual work for displacement"
+  }
+}

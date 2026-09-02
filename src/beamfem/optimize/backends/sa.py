@@ -50,27 +50,43 @@ class SimulatedAnnealingBackend:
         self.initial_temperature = initial_temperature
         self.final_temperature = float(final_temperature)
 
-    def solve_qubo(self, model: QUBOModel, initial_bits: Sequence[int] | None = None) -> QUBOSolution:
+    def solve_qubo(self, model: QUBOModel, initial_bits: Sequence[int] | None = None,
+                   *, max_moves: int | None = None,
+                   time_limit: float | None = None) -> QUBOSolution:
+        started = perf_counter()
         rng = np.random.default_rng(self.seed)
         scale = max(float(np.max(np.abs(model.linear), initial=0.0)),
                     float(np.max(np.abs(model.quadratic), initial=0.0)), 1.0)
         t0 = float(self.initial_temperature or 2.0 * scale)
         best_bits, best_energy = None, float("inf")
-        accepted = 0
+        accepted = moves = energy_evaluations = restarts_executed = 0
         for restart in range(self.restarts):
+            if max_moves is not None and moves >= max_moves:
+                break
+            if (restarts_executed and time_limit is not None
+                    and perf_counter() - started >= time_limit):
+                break
+            restarts_executed += 1
             if restart == 0 and initial_bits is not None:
                 bits = np.asarray(initial_bits, dtype=int).copy()
             else:
                 bits = rng.integers(0, 2, size=model.n_variables)
             energy = model.energy(bits)
+            energy_evaluations += 1
             if energy < best_energy:
                 best_bits, best_energy = bits.copy(), energy
             for sweep in range(self.sweeps):
+                if max_moves is not None and moves >= max_moves:
+                    break
+                if time_limit is not None and perf_counter() - started >= time_limit:
+                    break
                 progress = sweep / max(1, self.sweeps - 1)
                 temperature = t0 * (self.final_temperature / t0) ** progress
                 i = int(rng.integers(model.n_variables))
                 trial = bits.copy(); trial[i] ^= 1
                 trial_energy = model.energy(trial)
+                energy_evaluations += 1
+                moves += 1
                 delta = trial_energy - energy
                 if delta <= 0 or rng.random() < exp(-delta / temperature):
                     bits, energy = trial, trial_energy
@@ -79,14 +95,20 @@ class SimulatedAnnealingBackend:
                         best_bits, best_energy = bits.copy(), energy
         return QUBOSolution(tuple(int(v) for v in best_bits), float(best_energy),
             {"sweeps": self.sweeps, "restarts": self.restarts, "seed": self.seed,
-             "accepted_moves": accepted})
+             "accepted_moves": accepted,
+             "moves_executed": moves, "restarts_executed": restarts_executed,
+             "qubo_energy_evaluations": energy_evaluations})
 
     def solve(self, problem: Any, initial_design: Any | None = None,
               limits: SolverLimits | None = None) -> OptimizationResult:
         started = perf_counter()
         template = initial_design if initial_design is not None else problem.initial_design
         model, decoder = _resolve_qubo(problem, template, self.qubo, self.decoder)
-        solution = self.solve_qubo(model)
+        solution = self.solve_qubo(
+            model,
+            max_moves=None if limits is None else limits.max_iterations,
+            time_limit=None if limits is None else limits.time_limit,
+        )
         decoded = decoder(solution.bits)
         if isinstance(decoded, (tuple, list, np.ndarray)):
             design = make_design(problem, decoded, template)
@@ -97,6 +119,6 @@ class SimulatedAnnealingBackend:
         metadata.update({"qubo_energy": solution.energy, "qubo_bits": solution.bits,
                          "qubo_variables": model.n_variables})
         return OptimizationResult(design, evaluation_objective(evaluation), evaluation_feasible(evaluation),
-            evaluation_constraints(evaluation), self.sweeps * self.restarts, 1,
+            evaluation_constraints(evaluation), int(metadata["moves_executed"]), 1,
             perf_counter()-started, "sa", "success", "annealing complete",
             metadata, evaluation=evaluation)

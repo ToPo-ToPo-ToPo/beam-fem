@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from pathlib import Path
 from typing import Iterable, Mapping, TYPE_CHECKING
 
 import numpy as np
@@ -151,6 +152,15 @@ class DiscreteStructuralProblem:
     def clear_cache(self) -> None:
         if self._evaluator is not None:
             self._evaluator.clear_cache()
+
+    def enable_persistent_cache(self, path: str | Path) -> None:
+        """Reuse FEM evaluations across runs with context/integrity guards."""
+        if self._evaluator is None:
+            from .evaluation import StructuralEvaluator
+
+            self._evaluator = StructuralEvaluator(self, persistent_cache_path=path)
+        else:
+            self._evaluator.enable_persistent_cache(path)
 
     def __getstate__(self):
         """Serialize the problem definition without process-local FEM caches.

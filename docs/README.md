@@ -25,7 +25,9 @@
 | [15. 製品要件・リリース条件](15_product_requirements.md) | 適用範囲、精度・性能基準、RC判定 | `validation/` |
 | [16. 量子バックエンド検証](16_quantum_validation.md) | Statevector/Aer/実機差替え、証拠要件 | `optimize/backends/qaoa.py` |
 | [17. リリース運用](17_release_operations.md) | 成果物保持、完全性検証、ロールバック | `io/release_archive.py` |
-| [18. 開発計画の実施状況](18_development_plan_status.md) | フェーズ0〜8の完了・一部完了・未実装、弾塑性ロードマップ | 実装・検証証跡全体 |
+| [18. 開発計画の実施状況](18_development_plan_status.md) | フェーズ0〜8と弾塑性拡張の実装完了、外部承認の残件 | 実装・検証証跡全体 |
+| [19. 非線形・弾塑性トラス](19_nonlinear_elastoplastic_truss.md) | return-mapping、増分Newton法、履歴、corotational解析、極限判定 | 非線形トラス解析 |
+| [20. 線形モーダル解析](20_modal_analysis.md) | 集中質量、質量なし自由度の縮約、固有値・モード形 | `modal.py` |
 
 ## 例題
 

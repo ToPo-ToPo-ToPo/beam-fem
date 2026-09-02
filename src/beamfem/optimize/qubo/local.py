@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import replace
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from math import inf
+from math import inf, isfinite
 import inspect
 from time import perf_counter
 from typing import Any, Sequence
@@ -13,6 +13,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from .model import QUBOModel
+from .candidate_selection import select_candidates
 from .penalties import AdaptivePenalty
 from .trust_region import TrustRegion
 
@@ -35,7 +36,12 @@ def _evaluate_process_design(design: Any) -> Any:
         evaluation = _PROCESS_PROBLEM.evaluate(design, use_cache=False)
     else:
         evaluation = _PROCESS_PROBLEM.evaluate(design)
-    return _EvaluationSummary(_objective(evaluation), _violation(evaluation))
+    return _EvaluationSummary(
+        _objective(evaluation),
+        _violation(evaluation),
+        float(getattr(evaluation, "mass", _objective(evaluation))),
+        _engineering_indicators(evaluation, 0.0, 0.0),
+    )
 
 
 @dataclass(frozen=True)
@@ -44,6 +50,7 @@ class DesignMove:
     state: int
     single_merit: float
     predicted_improvement: float
+    indicators: dict[str, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +58,8 @@ class _EvaluationSummary:
     """Small process-transfer object containing all QUBO-builder inputs."""
     objective: float
     violation: float
+    mass: float
+    engineering_indicators: dict[str, float]
 
 
 def _values(design: Any) -> tuple[int, ...]:
@@ -94,6 +103,63 @@ def _violation(evaluation: Any) -> float:
             total += max(0.0, float(item))
     feasible = getattr(evaluation, "feasible", True)
     return total if feasible or total > 0 else inf
+
+
+def _engineering_indicators(evaluation: Any, mass_saving: float,
+                            recent_improvement: float) -> dict[str, float]:
+    """Extract auditable, backend-neutral screening indicators."""
+    violation = _violation(evaluation)
+    if isinstance(evaluation, _EvaluationSummary):
+        indicators = dict(evaluation.engineering_indicators)
+        indicators["mass_saving"] = float(mass_saving)
+        indicators["recent_improvement"] = float(recent_improvement)
+        return indicators
+    constraints = getattr(evaluation, "constraints", ())
+    utilizations = []
+    buckling = []
+    for item in constraints:
+        utilization = getattr(item, "utilization", None)
+        if utilization is None or not isfinite(float(utilization)):
+            continue
+        utilizations.append(float(utilization))
+        if getattr(item, "kind", "") == "euler_buckling":
+            buckling.append(float(utilization))
+    strain_energy = 0.0
+    for analysis in getattr(evaluation, "analyses", {}).values():
+        displacement = analysis.static.u
+        strain_energy += max(0.0, float(0.5 * displacement @ (analysis.static.K @ displacement)))
+    stable = 0.0 if not isfinite(violation) else 1.0
+    maximum_utilization = max(utilizations, default=0.0)
+    maximum_buckling = max(buckling, default=0.0)
+    return {
+        "mass_saving": float(mass_saving),
+        "utilization": 1.0 / (1.0 + max(0.0, maximum_utilization - 1.0)),
+        "strain_energy": strain_energy,
+        "buckling_margin": 1.0 / (1.0 + max(0.0, maximum_buckling)),
+        "connectivity": stable,
+        "recent_improvement": float(recent_improvement),
+    }
+
+
+def _normalize_indicator_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = (
+        "mass_saving", "utilization", "strain_energy", "buckling_margin",
+        "connectivity", "recent_improvement",
+    )
+    output = [dict(record) for record in records]
+    for key in keys:
+        values = np.asarray([float(record.get(key, 0.0)) for record in output])
+        finite = np.isfinite(values)
+        if not np.any(finite):
+            normalized = np.zeros_like(values)
+        else:
+            low, high = float(np.min(values[finite])), float(np.max(values[finite]))
+            normalized = np.zeros_like(values)
+            if high > low:
+                normalized[finite] = (values[finite] - low) / (high - low)
+        for record, value in zip(output, normalized):
+            record[key] = float(value)
+    return output
 
 
 class LocalQUBOBuilder:
@@ -209,11 +275,25 @@ class LocalQUBOBuilder:
                 single_specs.append((member, state, tuple(changed)))
         single_evaluations = evaluate_many([spec[2] for spec in single_specs])
         moves = []
-        for (member, state, _), single_evaluation in zip(single_specs, single_evaluations):
+        indicator_records = []
+        for position, ((member, state, _), single_evaluation) in enumerate(
+            zip(single_specs, single_evaluations)
+        ):
             score = self._merit(single_evaluation, self.penalty.value)
-            moves.append(DesignMove(member, state, score, base_merit - score))
-        moves.sort(key=lambda move: (-move.predicted_improvement, move.member, move.state))
-        moves = moves[:self.max_candidates]
+            improvement = base_merit - score
+            base_mass = float(getattr(base_eval, "mass", _objective(base_eval)))
+            candidate_mass = float(
+                getattr(single_evaluation, "mass", _objective(single_evaluation))
+            )
+            indicators = _engineering_indicators(
+                single_evaluation, base_mass - candidate_mass, improvement
+            )
+            moves.append(DesignMove(member, state, score, improvement, indicators))
+            indicator_records.append({"index": position, **indicators})
+        ranked = select_candidates(
+            _normalize_indicator_records(indicator_records), self.max_candidates
+        )
+        moves = [moves[candidate.index] for candidate in ranked]
         screening_seconds = perf_counter() - screening_started
 
         n_actions = len(moves)
@@ -267,6 +347,8 @@ class LocalQUBOBuilder:
                       [f"trust_slack_{i}" for i in range(slack_width)])
         self.last_metadata = {
             "base_merit": base_merit, "moves": tuple(moves), "radius": radius,
+            "candidate_selection": "normalized_engineering_indicators_v1",
+            "candidate_indicators": tuple(move.indicators for move in moves),
             "screened_moves": sum(len(d) - 1 for d in domains),
             "pair_evaluations": len(pair_specs), "fem_evaluations": len(cache_values),
             "cardinality_penalty": cardinality_penalty,

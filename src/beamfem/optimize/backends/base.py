@@ -111,6 +111,28 @@ class OptimizationResult:
     history: tuple[HistoryEntry, ...] = ()
     evaluation: Any = None
 
+    def __post_init__(self) -> None:
+        metadata = dict(self.solver_metadata)
+        existing = dict(metadata.get("normalized_work", {}))
+        qaoa_calls = metadata.get("cost_function_evaluations")
+        qubo_calls = metadata.get("qubo_energy_evaluations", qaoa_calls)
+        work = {
+            "fem_evaluations": int(self.evaluations),
+            "optimizer_iterations": int(self.iterations),
+            "classical_objective_evaluations": (
+                None if qubo_calls is None else int(qubo_calls)
+            ),
+            "quantum_shots": int(metadata.get("shots") or 0),
+            "quantum_circuit_evaluations": (
+                None if qaoa_calls is None else int(qaoa_calls)
+            ),
+            "normalized_fem_equivalents": int(self.evaluations),
+            "budget_dimensions_are_not_interchangeable": True,
+        }
+        work.update(existing)
+        metadata["normalized_work"] = work
+        object.__setattr__(self, "solver_metadata", metadata)
+
     def as_dict(self) -> dict[str, Any]:
         """Return a stable summary without expanding heavy FEM matrices."""
         evaluation = self.evaluation

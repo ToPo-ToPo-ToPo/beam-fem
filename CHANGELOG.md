@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- Added incremental elastoplastic and corotational truss analysis, history
+  variables, adaptive Newton solution, collapse diagnostics, and common
+  subproblem integration for topology/section optimization.
+- Added linear modal analysis with mechanism diagnostics.
+- Added frame rotational end releases, public truss strain/extension results,
+  mixed truss/frame/shell verification, and Pratt/Warren references.
+- Added pluggable sparse solvers, integrity-checked persistent FEM caching,
+  engineering-indicator QUBO selection, Pareto fronts, and normalized work
+  accounting across classical and quantum backends.
+- Added QAOA CVaR, readout mitigation, raw/mitigated distributions, and split
+  queue/execution/wall timing metadata.
+- Added external versioned CSV catalogs, REST API, PDF output, utilization and
+  optimization-history reporting, and two-run comparisons.
+- Added limited AISC 360-22 I-shape classification and H1 interaction previews,
+  an official-example regression, OpenSees cross-checks, and endurance gates.
+- Hardened release approval gates so repository-local status edits cannot
+  impersonate signed independent reviews or real-project pilots.
+
 ## 1.0.0rc2
 
 - Closed every automatable Phase 0–8 acceptance gap: repeated-seed statistics,

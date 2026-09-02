@@ -48,7 +48,35 @@ class MultiStartBackend:
                 starts.append(make_design(problem, values, template))
         results = []
         for index, start in enumerate(starts):
-            results.append(self.backend_factory(self.seed + index).solve(problem, start, limits))
+            run_limits = limits
+            if limits is not None:
+                used_evaluations = sum(result.evaluations for result in results)
+                used_iterations = sum(result.iterations for result in results)
+                remaining_evaluations = (
+                    None if limits.max_evaluations is None
+                    else limits.max_evaluations - used_evaluations
+                )
+                remaining_iterations = (
+                    None if limits.max_iterations is None
+                    else limits.max_iterations - used_iterations
+                )
+                remaining_time = (
+                    None if limits.time_limit is None
+                    else limits.time_limit - (perf_counter() - started)
+                )
+                if any(value is not None and value <= 0 for value in (
+                    remaining_evaluations, remaining_iterations, remaining_time,
+                )):
+                    break
+                run_limits = SolverLimits(
+                    max_evaluations=remaining_evaluations,
+                    max_iterations=remaining_iterations,
+                    time_limit=remaining_time,
+                    memory_limit_mb=limits.memory_limit_mb,
+                )
+            results.append(
+                self.backend_factory(self.seed + index).solve(problem, start, run_limits)
+            )
         feasible = [result for result in results if result.feasible]
         candidates = feasible or results
         best = min(candidates, key=lambda result: result.objective)
@@ -62,6 +90,8 @@ class MultiStartBackend:
                         for index, result in enumerate(results))
         metadata = dict(best.solver_metadata)
         metadata.update({"multi_start": summary, "starts": self.starts,
+                         "starts_executed": len(results),
+                         "budget_scope": "aggregate_across_starts",
                          "feasible_starts": len(feasible), "optimality_gap": gap,
                          "aggregate_solver_runtime": sum(result.runtime for result in results)})
         return replace(best, runtime=perf_counter()-started, backend="multi_start",

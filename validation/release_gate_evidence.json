@@ -1,10 +1,10 @@
 {
   "evidence_schema_version": "1.0",
-  "created_at_utc": "2026-09-02T04:15:57.946304+00:00",
+  "created_at_utc": "2026-09-02T05:03:36.310681+00:00",
   "environment": {
     "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
     "python": "3.13.9",
-    "git_commit": "f747c6684dcc12d79d6b57b53610d644f63cfb93"
+    "git_commit": "c0e9f6e61709e90be2b46904e82a91f96c7d752c"
   },
   "automated_checks": {
     "reference_cases": true,
@@ -16,11 +16,36 @@
     "quantum_noisy_smoke": true,
     "dependency_security": true,
     "dependency_inventory": true,
+    "code_check_reference": true,
+    "opensees_crosscheck": true,
+    "endurance": true,
     "dependency_lock_present": true
   },
   "external_checks": {
     "independent_engineer_review": false,
     "minimum_two_approved_pilots": false
+  },
+  "external_check_diagnostics": {
+    "independent_review": [
+      "external approval record was not supplied",
+      "status is not approved",
+      "candidate_commit does not match the release candidate",
+      "reviewer record is missing",
+      "every review check must be approved",
+      "blocking findings remain open",
+      "reviewed_at must be an ISO-8601 timestamp with timezone",
+      "signature_or_approval_reference is missing"
+    ],
+    "pilots": {
+      "_gate": [
+        "at least two distinct externally supplied approved pilot records are required; received 0"
+      ]
+    }
+  },
+  "external_approval_inputs": {
+    "independent_review": null,
+    "pilot_records": [],
+    "policy": "approval records committed inside the source repository are never trusted"
   },
   "approved_pilot_files": [],
   "artifacts": {
@@ -63,6 +88,21 @@
       "path": "validation/dependency_evidence.json",
       "sha256": "8cf3d03faed5d3231eaf77bb82f34b4dec5f01b357d4adf782d33ee8e866ddf7",
       "size_bytes": 143185
+    },
+    "code_check_reference": {
+      "path": "validation/code_check_reference_evidence.json",
+      "sha256": "7227bd83f1735c5a794aee1fe7a976ead91ea7de1f7afdcf1b5131d9e0b10838",
+      "size_bytes": 1462
+    },
+    "opensees_crosscheck": {
+      "path": "validation/opensees_crosscheck_evidence.json",
+      "sha256": "caca6cfc20de528aa1ada9c77e74deafb0dac08080d93fd4060b99a33d89de52",
+      "size_bytes": 981
+    },
+    "endurance": {
+      "path": "validation/endurance_evidence.json",
+      "sha256": "bf53a14130aa27566d993a948068a6e707ef19baa5ba933e9db4bf4894afd1ea",
+      "size_bytes": 942
     },
     "dependency_lock": {
       "path": "requirements-release.lock",

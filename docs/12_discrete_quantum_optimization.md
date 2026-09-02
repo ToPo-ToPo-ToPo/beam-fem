@@ -102,6 +102,15 @@ FEM可行anchorからfeasibility-first探索を実行し、raw MILP候補、修�
 
 ベンチマークではFEM、候補生成、QUBO構築、ソルバー、最終検証の時間を分離する。
 
+`LocalQUBOBuilder` の既定候補選別は、質量差、制約利用率、ひずみエネルギー、
+Euler座屈余裕、機構・連結性、直近merit改善を候補集合内で正規化して順位付けする。
+方式と指標は `candidate_selection` / `candidate_indicators` に保存する。
+
+小規模問題では `ParetoFrontBackend` が可行設計を列挙し、mass・cost・carbonの
+非支配解を `ParetoResult` として返す。全結果の `normalized_work` はFEM評価、
+古典目的関数評価、optimizer反復、量子shots、量子回路評価を別軸で記録する。
+計算内容が異なる軸を相互換算せず、multi-startの上限は全startの合計に適用する。
+
 ## 検証
 
 次の順に検証する。

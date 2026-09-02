@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 import scipy.sparse as sp
@@ -21,7 +22,8 @@ from .assembly import (
     constrained_dofs,
     element_dof_map,
 )
-from .model import DOF_PER_NODE, Model, TrussElement
+from .element3d import rotation_matrix
+from .model import DOF_PER_NODE, Element, Model, TrussElement
 
 
 class StructuralMechanismError(RuntimeError):
@@ -31,6 +33,55 @@ class StructuralMechanismError(RuntimeError):
         self.dofs = tuple(int(dof) for dof in dofs)
         suffix = f" affected_dofs={list(self.dofs)}" if self.dofs else ""
         super().__init__(message + suffix)
+
+
+@runtime_checkable
+class SparseSolver(Protocol):
+    """Public adapter contract for sparse direct-solver integrations."""
+
+    name: str
+
+    def factorize(self, matrix: sp.csc_matrix) -> object: ...
+
+
+@dataclass(frozen=True)
+class SciPyLUSolver:
+    name: str = "scipy_splu"
+
+    def factorize(self, matrix: sp.csc_matrix) -> object:
+        return spla.splu(matrix)
+
+
+_SPARSE_SOLVERS: dict[str, SparseSolver] = {"scipy_splu": SciPyLUSolver()}
+
+
+def register_sparse_solver(name: str, solver: SparseSolver, *, replace: bool = False) -> None:
+    """Register an external sparse solver without changing FEM assembly code."""
+    key = str(name).strip()
+    if not key or not isinstance(solver, SparseSolver):
+        raise ValueError("sparse solver requires a name and factorize(matrix) method")
+    if key in _SPARSE_SOLVERS and not replace:
+        raise ValueError(f"sparse solver {key!r} is already registered")
+    _SPARSE_SOLVERS[key] = solver
+
+
+def available_sparse_solvers() -> tuple[str, ...]:
+    return tuple(sorted(_SPARSE_SOLVERS))
+
+
+def get_sparse_solver(solver: str | SparseSolver | None = None) -> SparseSolver:
+    if solver is None:
+        return _SPARSE_SOLVERS["scipy_splu"]
+    if isinstance(solver, str):
+        try:
+            return _SPARSE_SOLVERS[solver]
+        except KeyError as exc:
+            raise ValueError(
+                f"unknown sparse solver {solver!r}; available={available_sparse_solvers()}"
+            ) from exc
+    if not isinstance(solver, SparseSolver):
+        raise TypeError("sparse_solver must be a registered name or SparseSolver")
+    return solver
 
 
 @dataclass
@@ -62,6 +113,7 @@ class StaticFactorization:
     constrained_values: np.ndarray
     lu: object
     inactive_free: np.ndarray
+    solver_name: str = "scipy_splu"
 
     def solve_load(self, force: np.ndarray) -> StaticResult:
         force = np.asarray(force, dtype=float)
@@ -90,11 +142,12 @@ class StaticFactorization:
         return self.solve_load(assemble_load_vector(model))
 
 
-def _solve_sparse(A: sp.csr_matrix, b: np.ndarray) -> np.ndarray:
+def _solve_sparse(A: sp.csr_matrix, b: np.ndarray,
+                  sparse_solver: str | SparseSolver | None = None) -> np.ndarray:
     """疎線形系 A x = b を解く。ここを差し替えればソルバを交換できる。"""
     # splu は LU 分解を保持でき、複数右辺・反復解析で再利用しやすい
     try:
-        lu = spla.splu(A.tocsc())
+        lu = get_sparse_solver(sparse_solver).factorize(A.tocsc())
     except RuntimeError as exc:
         raise StructuralMechanismError(
             "縮約剛性行列が特異です。支持条件または部材接続を確認してください"
@@ -102,7 +155,8 @@ def _solve_sparse(A: sp.csr_matrix, b: np.ndarray) -> np.ndarray:
     return lu.solve(b)
 
 
-def factorize_static(model: Model, dof_maps=None) -> StaticFactorization:
+def factorize_static(model: Model, dof_maps=None,
+                     sparse_solver: str | SparseSolver | None = None) -> StaticFactorization:
     """Assemble and factorize one static system for multiple load cases."""
     if dof_maps is None:
         dof_maps = element_dof_map(model)
@@ -136,24 +190,47 @@ def factorize_static(model: Model, dof_maps=None) -> StaticFactorization:
         for node in truss_only_nodes
         for dof in (3, 4, 5)
     }
+    # A released frame-end rotation with no other connected stiffness is an
+    # intentional internal hinge, analogous to a truss-only nodal rotation.
+    for element in model.elements:
+        if not isinstance(element, Element):
+            continue
+        rotation = rotation_matrix(
+            model.nodes[element.n1], model.nodes[element.n2], element.vref
+        )
+        for node, releases in (
+            (element.n1, element.release_n1), (element.n2, element.release_n2)
+        ):
+            if set(releases) == {3, 4, 5}:
+                ignorable.update(node * DOF_PER_NODE + dof for dof in (3, 4, 5))
+                continue
+            for local_dof in releases:
+                direction = np.abs(rotation[local_dof - 3])
+                aligned = np.flatnonzero(direction > 1.0 - 1e-10)
+                if aligned.size == 1:
+                    ignorable.add(node * DOF_PER_NODE + 3 + int(aligned[0]))
     unexpected_inactive = np.asarray([dof for dof in inactive if int(dof) not in ignorable], dtype=int)
     if unexpected_inactive.size:
         raise StructuralMechanismError(
             "並進または非トラス回転自由度に剛性がありません",
             unexpected_inactive,
         )
+    solver = get_sparse_solver(sparse_solver)
     lu = None
     if free.size:
         try:
-            lu = spla.splu(K[free][:, free].tocsc())
+            lu = solver.factorize(K[free][:, free].tocsc())
         except RuntimeError as exc:
             raise StructuralMechanismError(
                 "縮約剛性行列が特異です。支持条件または部材接続を確認してください",
                 free,
             ) from exc
-    return StaticFactorization(K, free, constrained, constrained_values, lu, inactive)
+    return StaticFactorization(
+        K, free, constrained, constrained_values, lu, inactive, solver.name
+    )
 
 
-def solve_static(model: Model, dof_maps=None) -> StaticResult:
+def solve_static(model: Model, dof_maps=None,
+                 sparse_solver: str | SparseSolver | None = None) -> StaticResult:
     """線形静解析を実行する。"""
-    return factorize_static(model, dof_maps).solve_model(model)
+    return factorize_static(model, dof_maps, sparse_solver).solve_model(model)

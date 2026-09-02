@@ -1,0 +1,38 @@
+{
+  "evidence_schema_version": "1.0",
+  "created_at_utc": "2026-09-02T05:03:36.209395+00:00",
+  "environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.9",
+    "beamfem": "1.0.0rc2",
+    "git_commit": "c0e9f6e61709e90be2b46904e82a91f96c7d752c"
+  },
+  "external_solver": {
+    "name": "OpenSeesPy",
+    "version": "3.8.0.0"
+  },
+  "tolerances": {
+    "relative": 1e-08,
+    "absolute": 1e-06
+  },
+  "linear": {
+    "beamfem_displacement": 0.0005,
+    "opensees_displacement": 0.0005,
+    "opensees_axial_force": 1000000.0
+  },
+  "bilinear": {
+    "target_displacement": 0.003,
+    "beamfem_displacement": 0.003,
+    "opensees_displacement": 0.0029999999999999988,
+    "beamfem_stress": 253500000.0,
+    "opensees_stress": 253500000.0
+  },
+  "checks": {
+    "linear_displacement": true,
+    "linear_axial_force": true,
+    "bilinear_displacement": true,
+    "bilinear_stress": true,
+    "beamfem_nonlinear_converged": true
+  },
+  "passed": true
+}

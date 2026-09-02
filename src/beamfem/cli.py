@@ -4,17 +4,19 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+import json
 from pathlib import Path
 import sys
 
 from .io import (
     RunStatus, build_discrete_problem, create_run_manifest, load_problem_spec,
     load_run_manifest, verify_resume_compatibility, write_design_report,
-    write_result_json, write_run_manifest,
+    write_comparison_report, write_design_pdf, write_result_json, write_run_manifest,
 )
 from .optimize.backends import (
     ExactBackend,
     GreedyBackend,
+    IndependentReadoutMitigator,
     QAOABackend,
     QiskitNotInstalledError,
     SequentialQUBOOptimizer,
@@ -55,11 +57,18 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--sa-restarts", type=int, default=8)
     parser.add_argument("--qaoa-reps", type=int, default=1)
     parser.add_argument("--qaoa-maxiter", type=int, default=100)
+    parser.add_argument("--qaoa-cvar-alpha", type=float,
+                        help="CVaR aggregation fraction in (0,1]; omitted uses expectation")
+    parser.add_argument("--readout-error-rate", type=float,
+                        help="apply independent symmetric readout mitigation with this error rate")
     parser.add_argument("--shots", type=int, default=1024)
     parser.add_argument("--fallback", choices=("none", "greedy", "sa"), default="greedy")
     parser.add_argument("--manifest", type=Path, help="write an atomic resumable run manifest")
     parser.add_argument("--resume", action="store_true", help="resume/revalidate the specified manifest")
     parser.add_argument("--html-report", type=Path, help="write a preliminary-design HTML report")
+    parser.add_argument("--pdf-report", type=Path, help="write a dependency-free preliminary PDF report")
+    parser.add_argument("--compare-with", type=Path, help="past result JSON used as comparison baseline")
+    parser.add_argument("--comparison-report", type=Path, help="write an HTML comparison report")
     parser.add_argument("--dependency-audit", type=Path, help="write checksums and an SBOM-like inventory")
     parser.add_argument(
         "--optimizer-checkpoint", type=Path,
@@ -70,8 +79,8 @@ def _parser() -> argparse.ArgumentParser:
 
 def _solver_settings(args) -> dict:
     excluded = {
-        "input", "output", "manifest", "resume", "html_report", "dependency_audit",
-        "optimizer_checkpoint",
+        "input", "output", "manifest", "resume", "html_report", "pdf_report",
+        "compare_with", "comparison_report", "dependency_audit", "optimizer_checkpoint",
     }
     return {key: value for key, value in vars(args).items() if key not in excluded}
 
@@ -89,11 +98,16 @@ def _sequential(problem, args, quantum: bool, *, use_checkpoint: bool = True):
         persistent_workers=workers > 1,
     )
     if quantum:
+        mitigator = None if args.readout_error_rate is None else IndependentReadoutMitigator(
+            args.readout_error_rate
+        )
         solver = QAOABackend(
             reps=args.qaoa_reps,
             shots=args.shots,
             seed=args.seed,
             maxiter=args.qaoa_maxiter,
+            cvar_alpha=args.qaoa_cvar_alpha,
+            readout_mitigator=mitigator,
         )
     else:
         solver = SimulatedAnnealingBackend(
@@ -130,6 +144,8 @@ def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     if args.resume and args.manifest is None:
         raise ValueError("--resume requires --manifest")
+    if (args.compare_with is None) != (args.comparison_report is None):
+        raise ValueError("--compare-with and --comparison-report must be used together")
     spec = load_problem_spec(args.input)
     settings = _solver_settings(args)
     manifest = None
@@ -237,10 +253,28 @@ def main(argv=None) -> int:
             payload, args.html_report, audit=audit, manifest=manifest,
             title=f"beamfem preliminary report: {payload['problem']}",
         )
+    if args.pdf_report is not None:
+        write_design_pdf(
+            payload, args.pdf_report, audit=audit,
+            title=f"beamfem preliminary report: {payload['problem']}",
+        )
+    if args.compare_with is not None:
+        with args.compare_with.open(encoding="utf-8") as stream:
+            baseline = json.load(stream)
+        with args.output.open(encoding="utf-8") as stream:
+            candidate = json.load(stream)
+        write_comparison_report(
+            baseline, candidate, args.comparison_report,
+            title=f"beamfem run comparison: {payload['problem']}",
+        )
     if args.dependency_audit is not None:
         artifact_paths = [args.output]
         if args.html_report is not None:
             artifact_paths.append(args.html_report)
+        if args.pdf_report is not None:
+            artifact_paths.append(args.pdf_report)
+        if args.comparison_report is not None:
+            artifact_paths.append(args.comparison_report)
         packages = ["beamfem", "numpy", "scipy"]
         if args.backend == "qaoa":
             packages.extend(("qiskit", "qiskit-optimization", "qiskit-aer"))
@@ -254,6 +288,12 @@ def main(argv=None) -> int:
         if args.html_report is not None:
             artifacts["html_report"] = sha256_file(args.html_report).digest
             artifact_paths["html_report"] = str(args.html_report.resolve())
+        if args.pdf_report is not None:
+            artifacts["pdf_report"] = sha256_file(args.pdf_report).digest
+            artifact_paths["pdf_report"] = str(args.pdf_report.resolve())
+        if args.comparison_report is not None:
+            artifacts["comparison_report"] = sha256_file(args.comparison_report).digest
+            artifact_paths["comparison_report"] = str(args.comparison_report.resolve())
         if args.dependency_audit is not None:
             artifacts["dependency_audit"] = sha256_file(args.dependency_audit).digest
             artifact_paths["dependency_audit"] = str(args.dependency_audit.resolve())

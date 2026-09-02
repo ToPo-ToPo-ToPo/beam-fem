@@ -1,0 +1,32 @@
+{
+  "case_id": "warren-2d-method-of-joints-v1",
+  "description": "Two-panel Warren truss checked by joint equilibrium and virtual work",
+  "dimension": 2,
+  "material": {"E": 200000000000.0, "nu": 0.3, "density": 7850.0},
+  "sections": {"bar": {"type": "generic", "A": 0.0004, "I": 1e-8}},
+  "nodes": [[0, 0, 0], [1, 1, 0], [2, 0, 0], [3, 1, 0], [4, 0, 0]],
+  "members": [
+    {"type": "truss", "nodes": [0, 1], "section": "bar"},
+    {"type": "truss", "nodes": [1, 2], "section": "bar"},
+    {"type": "truss", "nodes": [2, 3], "section": "bar"},
+    {"type": "truss", "nodes": [3, 4], "section": "bar"},
+    {"type": "truss", "nodes": [0, 2], "section": "bar"},
+    {"type": "truss", "nodes": [2, 4], "section": "bar"},
+    {"type": "truss", "nodes": [1, 3], "section": "bar"}
+  ],
+  "supports": [
+    {"node": 0, "dofs": ["UX", "UY", "UZ"]},
+    {"node": 1, "dofs": ["UZ"]}, {"node": 2, "dofs": ["UZ"]},
+    {"node": 3, "dofs": ["UZ"]}, {"node": 4, "dofs": ["UY", "UZ"]}
+  ],
+  "loads": [
+    {"node": 1, "force": [0, -10000, 0]},
+    {"node": 3, "force": [0, -10000, 0]}
+  ],
+  "expected": {
+    "node": 2,
+    "displacement": [0.00025, -0.0008535533905932738, 0],
+    "axial_forces": [-14142.13562373095, 0, 0, -14142.13562373095, 10000, 10000, -10000],
+    "formula": "method of joints for N; unit-load virtual work for displacement"
+  }
+}
